@@ -1,0 +1,6 @@
+proves:
+  - service: Home
+    role: server
+    ping:
+      address: "{{ .IPAddresses.eth0 }}"
+      count: 3

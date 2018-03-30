@@ -1,0 +1,31 @@
+api_key: TEST_KEY
+proves:
+  - service: prod
+    role: EC2
+    ping:
+      address: "{{ .ipAddresses.eth0 }}"
+      count: 3
+      timeout: 5s
+
+  - service: prod
+    role: NLB
+    tcp:
+      address: "{{ .customIdentifier }}"
+      port: 11211
+      send: "VERSION\r\n"
+      expect_pattern: "^VERSION "
+      timeout: 3s
+
+  - service: prod
+    role: ALB
+    http:
+      url: "{{ .metadata.prove.url }}"
+      method: POST
+      headers:
+        "User-Agent": "maprove/0.0.1"
+        "Cache-Control": "no-cache"
+        "Content-Type": "application/json"
+      body: '{"hello":"world"}'
+      expect: "ok"
+      skip_verify_certificates: true
+
