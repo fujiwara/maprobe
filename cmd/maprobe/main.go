@@ -6,14 +6,14 @@ import (
 	"log"
 	"os"
 
-	"github.com/fujiwara/maprove"
+	"github.com/fujiwara/maprobe"
 )
 
 func main() {
 	var config string
 	flag.StringVar(&config, "config", "", "config file path")
 	flag.Parse()
-	err := maprove.Run(context.Background(), config)
+	err := maprobe.Run(context.Background(), config)
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)

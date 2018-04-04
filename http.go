@@ -1,11 +1,11 @@
-package maprove
+package maprobe
 
 import (
 	"regexp"
 	"time"
 )
 
-type HTTPProve struct {
+type HTTPProbe struct {
 	URL                string
 	Method             string
 	Headers            map[string]string

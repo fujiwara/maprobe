@@ -1,4 +1,4 @@
-package maprove
+package maprobe
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
-type Prove interface {
+type Probe interface {
 	Run(ctx context.Context) (Metrics, error)
 }
 

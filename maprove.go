@@ -1,4 +1,4 @@
-package maprove
+package maprobe
 
 import (
 	"context"
@@ -24,7 +24,7 @@ func unlock() {
 }
 
 func Run(ctx context.Context, configPath string) error {
-	log.Println("[info] starting maprove")
+	log.Println("[info] starting maprobe")
 	conf, err := LoadConfig(configPath)
 	if err != nil {
 		return err
@@ -36,8 +36,8 @@ func Run(ctx context.Context, configPath string) error {
 
 	for {
 		var wg sync.WaitGroup
-	PROVE_CONFIG:
-		for _, pc := range conf.ProvesConfig {
+	PROBE_CONFIG:
+		for _, pc := range conf.ProbesConfig {
 			log.Printf("[debug] finding hosts service:%s roles:%s", pc.Service, pc.Roles)
 			hosts, err := client.FindHosts(&mackerel.FindHostsParam{
 				Service: pc.Service,
@@ -45,7 +45,7 @@ func Run(ctx context.Context, configPath string) error {
 			})
 			if err != nil {
 				log.Println("[error]", err)
-				continue PROVE_CONFIG
+				continue PROBE_CONFIG
 			}
 			for _, host := range hosts {
 				log.Printf("[debug] proving host id:%s name:%s", host.ID, host.Name)
@@ -54,13 +54,13 @@ func Run(ctx context.Context, configPath string) error {
 					lock()
 					defer unlock()
 					defer wg.Done()
-					for _, prove := range pc.Proves(host) {
-						log.Printf("[debug] proving host id:%s name:%s prove:%#v", host.ID, host.Name, prove)
-						metrics, err := prove.Run(ctx)
+					for _, probe := range pc.Probes(host) {
+						log.Printf("[debug] proving host id:%s name:%s probe:%#v", host.ID, host.Name, probe)
+						metrics, err := probe.Run(ctx)
 						if err != nil {
-							log.Println("[warn] prove failed.", err)
+							log.Println("[warn] probe failed.", err)
 						}
-						log.Println("[debug] proved", host.ID, host.Name+"\n", metrics.String())
+						log.Println("[debug] probed", host.ID, host.Name+"\n", metrics.String())
 						for _, m := range metrics {
 							ch <- m
 						}
@@ -68,7 +68,7 @@ func Run(ctx context.Context, configPath string) error {
 				}(host)
 			}
 		}
-		log.Println("[debug] all proves prepared")
+		log.Println("[debug] all probes prepared")
 		wg.Wait()
 		log.Println("[debug] waiting for a next tick")
 		select {

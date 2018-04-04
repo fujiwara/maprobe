@@ -1,5 +1,5 @@
-api_key: TEST_KEY
-proves:
+apikey: DUMMY
+probes:
   - service: prod
     role: EC2
     ping:
@@ -19,10 +19,10 @@ proves:
   - service: prod
     role: ALB
     http:
-      url: "{{ .metadata.prove.url }}"
+      url: "{{ .metadata.probe.url }}"
       method: POST
       headers:
-        "User-Agent": "maprove/0.0.1"
+        "User-Agent": "maprobe/0.0.1"
         "Cache-Control": "no-cache"
         "Content-Type": "application/json"
       body: '{"hello":"world"}'

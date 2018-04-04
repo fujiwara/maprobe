@@ -1,11 +1,11 @@
-package maprove
+package maprobe
 
 import (
 	"regexp"
 	"time"
 )
 
-type TCPProve struct {
+type TCPProbe struct {
 	Address       string
 	Port          int
 	Send          string

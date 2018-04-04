@@ -1,13 +1,13 @@
-package maprove_test
+package maprobe_test
 
 import (
 	"testing"
 
-	"github.com/fujiwara/maprove"
+	"github.com/fujiwara/maprobe"
 )
 
 func TestConfig(t *testing.T) {
-	conf, err := maprove.LoadConfig("test/config.yaml")
+	conf, err := maprobe.LoadConfig("test/config.yaml")
 	if err != nil {
 		t.Error(err)
 	}

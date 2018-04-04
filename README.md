@@ -1,2 +1,2 @@
-# maprove
-Mackerel external prove agent
+# maprobe
+Mackerel external probe agent

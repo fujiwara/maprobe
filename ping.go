@@ -1,4 +1,4 @@
-package maprove
+package maprobe
 
 import (
 	"context"
@@ -11,14 +11,14 @@ import (
 	fping "github.com/tatsushid/go-fastping"
 )
 
-type PingProveConfig struct {
+type PingProbeConfig struct {
 	Address string        `yaml:"address"`
 	Count   int           `yaml:"count"`
 	Timeout time.Duration `yaml:"timeout"`
 }
 
-func (pc *PingProveConfig) Prove(host *mackerel.Host) (*PingProve, error) {
-	p := &PingProve{
+func (pc *PingProbeConfig) Probe(host *mackerel.Host) (*PingProbe, error) {
+	p := &PingProbe{
 		HostID:  host.ID,
 		Count:   pc.Count,
 		Timeout: pc.Timeout,
@@ -28,17 +28,23 @@ func (pc *PingProveConfig) Prove(host *mackerel.Host) (*PingProve, error) {
 	} else {
 		p.Address = addr
 	}
+	if p.Count == 0 {
+		p.Count = 1
+	}
+	if p.Timeout == 0 {
+		p.Timeout = time.Second
+	}
 	return p, nil
 }
 
-type PingProve struct {
+type PingProbe struct {
 	HostID  string        `json:"host_id" yaml:"host_id"`
 	Address string        `json:"address" yaml:"address"`
 	Count   int           `json:"count" yaml:"count"`
 	Timeout time.Duration `json:"timeout" yaml:"timeout"`
 }
 
-func (p *PingProve) NewMetric(name string, value float64, ts time.Time) Metric {
+func (p *PingProbe) NewMetric(name string, value float64, ts time.Time) Metric {
 	return Metric{
 		HostID:    p.HostID,
 		Name:      name,
@@ -47,17 +53,22 @@ func (p *PingProve) NewMetric(name string, value float64, ts time.Time) Metric {
 	}
 }
 
-func (p *PingProve) Run(ctx context.Context) (Metrics, error) {
+func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
+	var ms Metrics
+
 	pinger := fping.NewPinger()
 	ipaddr, err := net.ResolveIPAddr("ip", p.Address)
 	if err != nil {
-		return nil, errors.Wrap(err, "resolve failed")
+		now := time.Now()
+		ms = append(ms, p.NewMetric("ping.count.success", 0, now))
+		ms = append(ms, p.NewMetric("ping.count.failure", 1, now))
+		return ms, errors.Wrap(err, "resolve failed")
 	}
 	pinger.AddIPAddr(ipaddr)
 
-	var ms Metrics
 	var min, max, total, avg time.Duration
 	var successCount, failureCount int
+	pinger.MaxRTT = p.Timeout
 	pinger.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
 		log.Println("[debug] OnRecv")
 		successCount++

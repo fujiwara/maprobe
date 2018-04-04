@@ -1,8 +1,8 @@
-package maprove
+package maprobe
 
 import "time"
 
-type CommandProve struct {
+type CommandProbe struct {
 	Command string
 	Timeout time.Duration
 }

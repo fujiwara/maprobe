@@ -1,4 +1,4 @@
-package maprove
+package maprobe
 
 import (
 	"io/ioutil"
@@ -12,27 +12,27 @@ import (
 
 type Config struct {
 	APIKey       string         `yaml:"apikey"`
-	ProvesConfig []*ProveConfig `yaml:"proves"`
+	ProbesConfig []*ProbeConfig `yaml:"probes"`
 }
 
-type ProveConfig struct {
+type ProbeConfig struct {
 	Service string           `yaml:"service"`
 	Role    string           `yaml:"role"`
 	Roles   []string         `yaml:"roles"`
-	Ping    *PingProveConfig `yaml:"ping"`
+	Ping    *PingProbeConfig `yaml:"ping"`
 }
 
-func (pc *ProveConfig) Proves(host *mackerel.Host) []Prove {
-	var proves []Prove
+func (pc *ProbeConfig) Probes(host *mackerel.Host) []Probe {
+	var probes []Probe
 	if ping := pc.Ping; ping != nil {
-		p, err := ping.Prove(host)
+		p, err := ping.Probe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate ping prove. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate ping probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
-			proves = append(proves, p)
+			probes = append(probes, p)
 		}
 	}
-	return proves
+	return probes
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -46,10 +46,18 @@ func LoadConfig(path string) (*Config, error) {
 	if err := yaml.Unmarshal(b, &c); err != nil {
 		return nil, err
 	}
-	for _, pc := range c.ProvesConfig {
+	for _, pc := range c.ProbesConfig {
 		if pc.Role != "" {
 			pc.Roles = append(pc.Roles, pc.Role)
 		}
 	}
-	return &c, nil
+
+	return &c, c.validate()
+}
+
+func (c *Config) validate() error {
+	if c.APIKey == "" {
+		return errors.New("no API Key")
+	}
+	return nil
 }
