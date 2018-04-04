@@ -11,6 +11,11 @@ import (
 	fping "github.com/tatsushid/go-fastping"
 )
 
+var (
+	DefaultPingTimeout = time.Seconds
+	DefaultPingCount   = 3
+)
+
 type PingProbeConfig struct {
 	Address string        `yaml:"address"`
 	Count   int           `yaml:"count"`
@@ -29,10 +34,10 @@ func (pc *PingProbeConfig) Probe(host *mackerel.Host) (*PingProbe, error) {
 		p.Address = addr
 	}
 	if p.Count == 0 {
-		p.Count = 1
+		p.Count = DefaultPingCount
 	}
 	if p.Timeout == 0 {
-		p.Timeout = time.Second
+		p.Timeout = DefaultPingTimeout
 	}
 	return p, nil
 }
