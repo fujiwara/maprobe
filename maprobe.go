@@ -2,6 +2,7 @@ package maprobe
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ var (
 	MaxConcurrency        = 100
 	PutMetricBufferLength = 100
 	sem                   = make(chan struct{}, MaxConcurrency)
+	ProbeInterval         = 60 * time.Second
 )
 
 func lock() {
@@ -30,9 +32,14 @@ func Run(ctx context.Context, configPath string) error {
 		return err
 	}
 	client := mackerel.NewClient(conf.APIKey)
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(ProbeInterval)
 	ch := make(chan Metric, PutMetricBufferLength*10)
-	go putMetricWorker(ctx, client, ch)
+
+	if conf.ProbeOnly {
+		go dumpMetricWorker(ctx, ch)
+	} else {
+		go putMetricWorker(ctx, client, ch)
+	}
 
 	for {
 		var wg sync.WaitGroup
@@ -47,20 +54,23 @@ func Run(ctx context.Context, configPath string) error {
 				log.Println("[error]", err)
 				continue PROBE_CONFIG
 			}
+			log.Printf("[debug] %d hosts found", len(hosts))
+			if len(hosts) == 0 {
+				continue
+			}
 			for _, host := range hosts {
-				log.Printf("[debug] proving host id:%s name:%s", host.ID, host.Name)
+				log.Printf("[debug] preparing host id:%s name:%s", host.ID, host.Name)
 				wg.Add(1)
 				go func(host *mackerel.Host) {
 					lock()
 					defer unlock()
 					defer wg.Done()
 					for _, probe := range pc.Probes(host) {
-						log.Printf("[debug] proving host id:%s name:%s probe:%#v", host.ID, host.Name, probe)
+						log.Printf("[debug] probing host id:%s name:%s probe:%#v", host.ID, host.Name, probe)
 						metrics, err := probe.Run(ctx)
 						if err != nil {
 							log.Println("[warn] probe failed.", err)
 						}
-						log.Println("[debug] probed", host.ID, host.Name+"\n", metrics.String())
 						for _, m := range metrics {
 							ch <- m
 						}
@@ -103,6 +113,17 @@ func putMetricWorker(ctx context.Context, client *mackerel.Client, ch chan Metri
 			log.Printf("[debug] put succeeded.")
 			// success. reset buffer
 			mvs = make([]*mackerel.HostMetricValue, 0, PutMetricBufferLength)
+		}
+	}
+}
+
+func dumpMetricWorker(ctx context.Context, ch chan Metric) {
+	for {
+		select {
+		case <-ctx.Done():
+		case m := <-ch:
+			b, _ := json.Marshal(m.HostMetricValue())
+			log.Println("[debug]", string(b))
 		}
 	}
 }

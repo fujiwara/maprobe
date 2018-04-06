@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	DefaultPingTimeout = time.Seconds
+	DefaultPingTimeout = time.Second
 	DefaultPingCount   = 3
 )
 

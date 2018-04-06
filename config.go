@@ -13,6 +13,7 @@ import (
 type Config struct {
 	APIKey       string         `yaml:"apikey"`
 	ProbesConfig []*ProbeConfig `yaml:"probes"`
+	ProbeOnly    bool           `yaml:"probe_only"`
 }
 
 type ProbeConfig struct {
