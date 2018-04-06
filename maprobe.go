@@ -31,6 +31,7 @@ func Run(ctx context.Context, configPath string) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("[debug]", conf)
 	client := mackerel.NewClient(conf.APIKey)
 	ticker := time.NewTicker(ProbeInterval)
 	ch := make(chan Metric, PutMetricBufferLength*10)
@@ -65,7 +66,7 @@ func Run(ctx context.Context, configPath string) error {
 					lock()
 					defer unlock()
 					defer wg.Done()
-					for _, probe := range pc.Probes(host) {
+					for _, probe := range pc.GenerateProbes(host) {
 						log.Printf("[debug] probing host id:%s name:%s probe:%#v", host.ID, host.Name, probe)
 						metrics, err := probe.Run(ctx)
 						if err != nil {

@@ -21,18 +21,29 @@ type ProbeConfig struct {
 	Role    string           `yaml:"role"`
 	Roles   []string         `yaml:"roles"`
 	Ping    *PingProbeConfig `yaml:"ping"`
+	TCP     *TCPProbeConfig  `yaml:"tcp"`
 }
 
-func (pc *ProbeConfig) Probes(host *mackerel.Host) []Probe {
+func (pc *ProbeConfig) GenerateProbes(host *mackerel.Host) []Probe {
 	var probes []Probe
 	if ping := pc.Ping; ping != nil {
-		p, err := ping.Probe(host)
+		p, err := ping.GenerateProbe(host)
 		if err != nil {
 			log.Printf("[error] cannot generate ping probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
 	}
+
+	if tcp := pc.TCP; tcp != nil {
+		p, err := tcp.GenerateProbe(host)
+		if err != nil {
+			log.Printf("[error] cannot generate tcp probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+		} else {
+			probes = append(probes, p)
+		}
+	}
+
 	return probes
 }
 

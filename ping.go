@@ -22,9 +22,9 @@ type PingProbeConfig struct {
 	Timeout time.Duration `yaml:"timeout"`
 }
 
-func (pc *PingProbeConfig) Probe(host *mackerel.Host) (*PingProbe, error) {
+func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (*PingProbe, error) {
 	p := &PingProbe{
-		HostID:  host.ID,
+		hostID:  host.ID,
 		Count:   pc.Count,
 		Timeout: pc.Timeout,
 	}
@@ -43,19 +43,14 @@ func (pc *PingProbeConfig) Probe(host *mackerel.Host) (*PingProbe, error) {
 }
 
 type PingProbe struct {
-	HostID  string        `json:"host_id" yaml:"host_id"`
+	hostID  string        `json:"host_id" yaml:"host_id"`
 	Address string        `json:"address" yaml:"address"`
 	Count   int           `json:"count" yaml:"count"`
 	Timeout time.Duration `json:"timeout" yaml:"timeout"`
 }
 
-func (p *PingProbe) NewMetric(name string, value float64, ts time.Time) Metric {
-	return Metric{
-		HostID:    p.HostID,
-		Name:      name,
-		Value:     value,
-		Timestamp: ts,
-	}
+func (p *PingProbe) HostID() string {
+	return p.hostID
 }
 
 func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
@@ -65,8 +60,8 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	ipaddr, err := net.ResolveIPAddr("ip", p.Address)
 	if err != nil {
 		now := time.Now()
-		ms = append(ms, p.NewMetric("ping.count.success", 0, now))
-		ms = append(ms, p.NewMetric("ping.count.failure", 1, now))
+		ms = append(ms, newMetric(p, "ping.count.success", 0, now))
+		ms = append(ms, newMetric(p, "ping.count.failure", 1, now))
 		return ms, errors.Wrap(err, "resolve failed")
 	}
 	pinger.AddIPAddr(ipaddr)
@@ -106,12 +101,12 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	}
 
 	now := time.Now()
-	ms = append(ms, p.NewMetric("ping.count.success", float64(successCount), now))
-	ms = append(ms, p.NewMetric("ping.count.failure", float64(failureCount), now))
+	ms = append(ms, newMetric(p, "ping.count.success", float64(successCount), now))
+	ms = append(ms, newMetric(p, "ping.count.failure", float64(failureCount), now))
 	if min > 0 || max > 0 || avg > 0 {
-		ms = append(ms, p.NewMetric("ping.rtt.min", min.Seconds(), now))
-		ms = append(ms, p.NewMetric("ping.rtt.max", max.Seconds(), now))
-		ms = append(ms, p.NewMetric("ping.rtt.avg", avg.Seconds(), now))
+		ms = append(ms, newMetric(p, "ping.rtt.min", min.Seconds(), now))
+		ms = append(ms, newMetric(p, "ping.rtt.max", max.Seconds(), now))
+		ms = append(ms, newMetric(p, "ping.rtt.avg", avg.Seconds(), now))
 	}
 	return ms, nil
 }

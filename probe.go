@@ -12,6 +12,7 @@ import (
 
 type Probe interface {
 	Run(ctx context.Context) (Metrics, error)
+	HostID() string
 }
 
 type Metrics []Metric
@@ -61,4 +62,13 @@ func expandPlaceHolder(src string, data interface{}) (string, error) {
 	b.Grow(len(src))
 	err = tmpl.Execute(&b, data)
 	return b.String(), err
+}
+
+func newMetric(p Probe, name string, value float64, ts time.Time) Metric {
+	return Metric{
+		HostID:    p.HostID(),
+		Name:      name,
+		Value:     value,
+		Timestamp: ts,
+	}
 }
