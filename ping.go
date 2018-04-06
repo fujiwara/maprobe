@@ -77,9 +77,8 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	pinger := fping.NewPinger()
 	ipaddr, err := net.ResolveIPAddr("ip", p.Address)
 	if err != nil {
-		now := time.Now()
-		ms = append(ms, newMetric(p, "count.success", 0, now))
-		ms = append(ms, newMetric(p, "count.failure", 1, now))
+		ms = append(ms, newMetric(p, "count.success", 0))
+		ms = append(ms, newMetric(p, "count.failure", 1))
 		return ms, errors.Wrap(err, "resolve failed")
 	}
 	pinger.AddIPAddr(ipaddr)
@@ -118,13 +117,12 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		avg = time.Duration(int64(total) / int64(successCount))
 	}
 
-	now := time.Now()
-	ms = append(ms, newMetric(p, "count.success", float64(successCount), now))
-	ms = append(ms, newMetric(p, "count.failure", float64(failureCount), now))
+	ms = append(ms, newMetric(p, "count.success", float64(successCount)))
+	ms = append(ms, newMetric(p, "count.failure", float64(failureCount)))
 	if min > 0 || max > 0 || avg > 0 {
-		ms = append(ms, newMetric(p, "rtt.min", min.Seconds(), now))
-		ms = append(ms, newMetric(p, "rtt.max", max.Seconds(), now))
-		ms = append(ms, newMetric(p, "rtt.avg", avg.Seconds(), now))
+		ms = append(ms, newMetric(p, "rtt.min", min.Seconds()))
+		ms = append(ms, newMetric(p, "rtt.max", max.Seconds()))
+		ms = append(ms, newMetric(p, "rtt.avg", avg.Seconds()))
 	}
 	return ms, nil
 }

@@ -116,13 +116,12 @@ func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	start := time.Now()
 	defer func() {
 		log.Println("[debug] defer", ok)
-		now := time.Now()
-		elapsed := now.Sub(start)
-		ms = append(ms, newMetric(p, "elapsed.seconds", elapsed.Seconds(), now))
+		elapsed := time.Now().Sub(start)
+		ms = append(ms, newMetric(p, "elapsed.seconds", elapsed.Seconds()))
 		if ok {
-			ms = append(ms, newMetric(p, "check.ok", 1, now))
+			ms = append(ms, newMetric(p, "check.ok", 1))
 		} else {
-			ms = append(ms, newMetric(p, "check.ok", 0, now))
+			ms = append(ms, newMetric(p, "check.ok", 0))
 		}
 	}()
 

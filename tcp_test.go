@@ -18,6 +18,7 @@ var TCPServerAddress net.Addr
 
 func TestMain(m *testing.M) {
 	TCPServerAddress = testTCPServer()
+	HTTPServerURL = testHTTPServer()
 	ret := m.Run()
 	os.Exit(ret)
 }

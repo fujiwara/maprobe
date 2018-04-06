@@ -22,12 +22,14 @@ type ProbeConfig struct {
 	Roles   []string         `yaml:"roles"`
 	Ping    *PingProbeConfig `yaml:"ping"`
 	TCP     *TCPProbeConfig  `yaml:"tcp"`
+	HTTP    *HTTPProbeConfig `yaml:"http"`
 }
 
 func (pc *ProbeConfig) GenerateProbes(host *mackerel.Host) []Probe {
 	var probes []Probe
-	if ping := pc.Ping; ping != nil {
-		p, err := ping.GenerateProbe(host)
+
+	if pingConfig := pc.Ping; pingConfig != nil {
+		p, err := pingConfig.GenerateProbe(host)
 		if err != nil {
 			log.Printf("[error] cannot generate ping probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
@@ -35,10 +37,19 @@ func (pc *ProbeConfig) GenerateProbes(host *mackerel.Host) []Probe {
 		}
 	}
 
-	if tcp := pc.TCP; tcp != nil {
-		p, err := tcp.GenerateProbe(host)
+	if tcpConfig := pc.TCP; tcpConfig != nil {
+		p, err := tcpConfig.GenerateProbe(host)
 		if err != nil {
 			log.Printf("[error] cannot generate tcp probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+		} else {
+			probes = append(probes, p)
+		}
+	}
+
+	if httpConfig := pc.HTTP; httpConfig != nil {
+		p, err := httpConfig.GenerateProbe(host)
+		if err != nil {
+			log.Printf("[error] cannot generate http probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}

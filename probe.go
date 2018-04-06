@@ -65,11 +65,11 @@ func expandPlaceHolder(src string, data interface{}) (string, error) {
 	return b.String(), err
 }
 
-func newMetric(p Probe, name string, value float64, ts time.Time) Metric {
+func newMetric(p Probe, name string, value float64) Metric {
 	return Metric{
 		HostID:    p.HostID(),
 		Name:      p.MetricName(name),
 		Value:     value,
-		Timestamp: ts,
+		Timestamp: time.Now(),
 	}
 }

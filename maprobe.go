@@ -71,8 +71,15 @@ func runProbeConfig(ctx context.Context, pc *ProbeConfig, client *mackerel.Clien
 			time.Sleep(mackerelRetryInterval)
 			continue
 		}
+
+		spawnInterval := time.Duration(int64(ProbeInterval) / int64(len(hosts)) / 2)
+		if spawnInterval > time.Second {
+			spawnInterval = time.Second
+		}
+
 		var wg2 sync.WaitGroup
 		for _, host := range hosts {
+			time.Sleep(spawnInterval)
 			log.Printf("[debug] preparing host id:%s name:%s", host.ID, host.Name)
 			wg2.Add(1)
 			go func(host *mackerel.Host) {
