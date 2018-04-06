@@ -2,6 +2,7 @@ package maprobe
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net"
 	"time"
@@ -12,21 +13,24 @@ import (
 )
 
 var (
-	DefaultPingTimeout = time.Second
-	DefaultPingCount   = 3
+	DefaultPingTimeout    = time.Second
+	DefaultPingCount      = 3
+	DefaultPingMetricName = "ping"
 )
 
 type PingProbeConfig struct {
-	Address string        `yaml:"address"`
-	Count   int           `yaml:"count"`
-	Timeout time.Duration `yaml:"timeout"`
+	Address         string        `yaml:"address"`
+	Count           int           `yaml:"count"`
+	Timeout         time.Duration `yaml:"timeout"`
+	MetricKeyPrefix string        `yaml:"metric_key_prefix"`
 }
 
 func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (*PingProbe, error) {
 	p := &PingProbe{
-		hostID:  host.ID,
-		Count:   pc.Count,
-		Timeout: pc.Timeout,
+		hostID:          host.ID,
+		metricKeyPrefix: pc.MetricKeyPrefix,
+		Count:           pc.Count,
+		Timeout:         pc.Timeout,
 	}
 	if addr, err := expandPlaceHolder(pc.Address, host); err != nil {
 		return nil, err
@@ -39,18 +43,32 @@ func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (*PingProbe, error
 	if p.Timeout == 0 {
 		p.Timeout = DefaultPingTimeout
 	}
+	if p.metricKeyPrefix == "" {
+		p.metricKeyPrefix = DefaultPingMetricName
+	}
 	return p, nil
 }
 
 type PingProbe struct {
-	hostID  string        `json:"host_id" yaml:"host_id"`
-	Address string        `json:"address" yaml:"address"`
-	Count   int           `json:"count" yaml:"count"`
-	Timeout time.Duration `json:"timeout" yaml:"timeout"`
+	hostID          string
+	metricKeyPrefix string
+
+	Address string
+	Count   int
+	Timeout time.Duration
 }
 
 func (p *PingProbe) HostID() string {
 	return p.hostID
+}
+
+func (p *PingProbe) MetricName(name string) string {
+	return p.metricKeyPrefix + "." + name
+}
+
+func (p *PingProbe) String() string {
+	b, _ := json.Marshal(p)
+	return string(b)
 }
 
 func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
@@ -60,8 +78,8 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	ipaddr, err := net.ResolveIPAddr("ip", p.Address)
 	if err != nil {
 		now := time.Now()
-		ms = append(ms, newMetric(p, "ping.count.success", 0, now))
-		ms = append(ms, newMetric(p, "ping.count.failure", 1, now))
+		ms = append(ms, newMetric(p, "count.success", 0, now))
+		ms = append(ms, newMetric(p, "count.failure", 1, now))
 		return ms, errors.Wrap(err, "resolve failed")
 	}
 	pinger.AddIPAddr(ipaddr)
@@ -101,12 +119,12 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	}
 
 	now := time.Now()
-	ms = append(ms, newMetric(p, "ping.count.success", float64(successCount), now))
-	ms = append(ms, newMetric(p, "ping.count.failure", float64(failureCount), now))
+	ms = append(ms, newMetric(p, "count.success", float64(successCount), now))
+	ms = append(ms, newMetric(p, "count.failure", float64(failureCount), now))
 	if min > 0 || max > 0 || avg > 0 {
-		ms = append(ms, newMetric(p, "ping.rtt.min", min.Seconds(), now))
-		ms = append(ms, newMetric(p, "ping.rtt.max", max.Seconds(), now))
-		ms = append(ms, newMetric(p, "ping.rtt.avg", avg.Seconds(), now))
+		ms = append(ms, newMetric(p, "rtt.min", min.Seconds(), now))
+		ms = append(ms, newMetric(p, "rtt.max", max.Seconds(), now))
+		ms = append(ms, newMetric(p, "rtt.avg", avg.Seconds(), now))
 	}
 	return ms, nil
 }

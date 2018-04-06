@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"log"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -12,17 +14,25 @@ import (
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
-func testTCPServer(t *testing.T) net.Addr {
+var TCPServerAddress net.Addr
+
+func TestMain(m *testing.M) {
+	TCPServerAddress = testTCPServer()
+	ret := m.Run()
+	os.Exit(ret)
+}
+
+func testTCPServer() net.Addr {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
 	go func() {
 		defer l.Close()
 		for {
 			conn, err := l.Accept()
 			if err != nil {
-				t.Fatal(err)
+				log.Fatal(err)
 				return
 			}
 			go func(conn net.Conn) {
@@ -39,8 +49,7 @@ func testTCPServer(t *testing.T) net.Addr {
 }
 
 func TestTCP(t *testing.T) {
-	addr := testTCPServer(t)
-	host, port, _ := net.SplitHostPort(addr.String())
+	host, port, _ := net.SplitHostPort(TCPServerAddress.String())
 
 	pc := &maprobe.TCPProbeConfig{
 		Host:          host,

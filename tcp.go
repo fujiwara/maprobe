@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"io"
 	"log"
 	"net"
@@ -15,22 +16,10 @@ import (
 )
 
 var (
-	DefaultTCPTimeout  = 5 * time.Second
-	DefaultTCPMaxBytes = 32 * 1024
+	DefaultTCPTimeout         = 5 * time.Second
+	DefaultTCPMaxBytes        = 32 * 1024
+	DefaultTCPMetricKeyPrefix = "tcp"
 )
-
-type TCPProbe struct {
-	hostID             string
-	Host               string
-	Port               string
-	Send               string
-	Quit               string
-	MaxBytes           int
-	ExpectPattern      *regexp.Regexp
-	Timeout            time.Duration
-	TLS                bool
-	NoCheckCertificate bool
-}
 
 type TCPProbeConfig struct {
 	Host               string        `yaml:"host"`
@@ -87,12 +76,39 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (*TCPProbe, error) 
 	if p.MaxBytes == 0 {
 		p.MaxBytes = DefaultTCPMaxBytes
 	}
+	if p.metricKeyPrefix == "" {
+		p.metricKeyPrefix = DefaultTCPMetricKeyPrefix
+	}
 
 	return p, nil
 }
 
+type TCPProbe struct {
+	hostID          string
+	metricKeyPrefix string
+
+	Host               string
+	Port               string
+	Send               string
+	Quit               string
+	MaxBytes           int
+	ExpectPattern      *regexp.Regexp
+	Timeout            time.Duration
+	TLS                bool
+	NoCheckCertificate bool
+}
+
 func (p *TCPProbe) HostID() string {
 	return p.hostID
+}
+
+func (p *TCPProbe) MetricName(name string) string {
+	return p.metricKeyPrefix + "." + name
+}
+
+func (p *TCPProbe) String() string {
+	b, _ := json.Marshal(p)
+	return string(b)
 }
 
 func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
@@ -102,11 +118,11 @@ func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 		log.Println("[debug] defer", ok)
 		now := time.Now()
 		elapsed := now.Sub(start)
-		ms = append(ms, newMetric(p, "tcp.elapsed.seconds", elapsed.Seconds(), now))
+		ms = append(ms, newMetric(p, "elapsed.seconds", elapsed.Seconds(), now))
 		if ok {
-			ms = append(ms, newMetric(p, "tcp.check.ok", 1, now))
+			ms = append(ms, newMetric(p, "check.ok", 1, now))
 		} else {
-			ms = append(ms, newMetric(p, "tcp.check.ok", 0, now))
+			ms = append(ms, newMetric(p, "check.ok", 0, now))
 		}
 	}()
 
