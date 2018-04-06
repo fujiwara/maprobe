@@ -45,6 +45,7 @@ func Run(ctx context.Context, configPath string) error {
 	var wg sync.WaitGroup
 	for _, pc := range conf.ProbesConfig {
 		wg.Add(1)
+		time.Sleep(time.Second)
 		go runProbeConfig(ctx, pc, client, ch, &wg)
 	}
 	wg.Wait()
@@ -124,6 +125,8 @@ func postMetricWorker(ctx context.Context, client *mackerel.Client, ch chan Metr
 			continue
 		}
 		log.Printf("[debug] posting %d metrics to Mackerel", len(mvs))
+		b, _ := json.Marshal(mvs)
+		log.Println("[debug]", string(b))
 		if err := client.PostHostMetricValues(mvs); err != nil {
 			log.Println("[error] failed to post metrics to Mackerel", err)
 			time.Sleep(mackerelRetryInterval)

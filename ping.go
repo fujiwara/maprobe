@@ -124,5 +124,6 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		ms = append(ms, newMetric(p, "rtt.max", max.Seconds()))
 		ms = append(ms, newMetric(p, "rtt.avg", avg.Seconds()))
 	}
+	log.Println("[debug]", ms.String())
 	return ms, nil
 }

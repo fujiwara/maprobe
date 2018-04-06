@@ -123,6 +123,7 @@ func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 		} else {
 			ms = append(ms, newMetric(p, "check.ok", 0))
 		}
+		log.Println("[debug]", ms.String())
 	}()
 
 	ctx, cancel := context.WithTimeout(ctx, p.Timeout)
