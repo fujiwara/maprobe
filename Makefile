@@ -1,0 +1,38 @@
+LATEST_TAG := $(shell git describe --abbrev=0 --tags)
+
+.PHONY: setup setup_ci test lint dist clean release
+
+test: setup
+	go test -v ./...
+
+cmd/maprobe/maprobe: *.go cmd/maprobe/main.go
+	cd cmd/maprobe && \
+	go build
+
+install: cmd/maprobe/maprobe
+	install cmd/maprobe/maprobe $(GOPATH)/bin
+
+setup:
+	dep ensure
+
+setup_ci:
+	go get \
+		github.com/laher/goxc \
+		github.com/tcnksm/ghr \
+		github.com/golang/lint/golint \
+		github.com/golang/dep/cmd/dep
+	go get -d -t ./...
+
+lint: setup
+	go vet ./...
+	golint -set_exit_status ./...
+
+dist: setup
+	goxc
+
+clean:
+	rm -fr dist/*
+
+release: dist
+	ghr -u fujiwara -r sardine $(LATEST_TAG) dist/snapshot/
+

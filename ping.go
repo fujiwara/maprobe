@@ -110,7 +110,7 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		err := pinger.Run()
 		if err != nil {
 			failureCount++
-			log.Printf("ping error to %s(%s): %s", p.Address, ipaddr, err)
+			log.Printf("[warn] ping failed to %s(%s): %s", p.Address, ipaddr, err)
 		}
 	}
 	if successCount != 0 {

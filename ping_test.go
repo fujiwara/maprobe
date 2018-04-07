@@ -15,7 +15,6 @@ var pingProbesConfig = []*maprobe.PingProbeConfig{
 	&maprobe.PingProbeConfig{Address: "google-public-dns-b.google.com", Count: 3, Timeout: pingTimeout},
 	&maprobe.PingProbeConfig{Address: "1.1.1.1", Count: 3, Timeout: pingTimeout},
 	&maprobe.PingProbeConfig{Address: "1dot1dot1dot1.cloudflare-dns.com", Count: 3, Timeout: pingTimeout},
-	&maprobe.PingProbeConfig{Address: "noname.example.com", Count: 3, Timeout: pingTimeout},
 }
 
 func TestPing(t *testing.T) {
