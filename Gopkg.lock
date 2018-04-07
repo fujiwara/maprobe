@@ -3,6 +3,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/hashicorp/logutils"
+  packages = ["."]
+  revision = "0dc08b1671f34c4250ce212759ebd880f743d883"
+
+[[projects]]
+  branch = "master"
   name = "github.com/mackerelio/mackerel-client-go"
   packages = ["."]
   revision = "458a40e9ccd85aa429f2894ea94f94d35bebd49f"
@@ -41,6 +47,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ce9e7c16eef9cab60cc065d2a7bcb6efa0302b10b1cd595b3218fd6463c3cbc5"
+  inputs-digest = "15c3b3ff72c8e30f2fe064e1c9788053ac76aa9a475b5967189564a6abb32d3c"
   solver-name = "gps-cdcl"
   solver-version = 1
