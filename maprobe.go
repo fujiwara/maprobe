@@ -148,3 +148,7 @@ func dumpMetricWorker(ctx context.Context, ch chan Metric) {
 		}
 	}
 }
+
+type templateParam struct {
+	Host *mackerel.Host
+}

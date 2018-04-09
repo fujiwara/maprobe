@@ -50,7 +50,7 @@ func (m Metric) String() string {
 	return fmt.Sprintf("%s\t%f\t%d", m.Name, m.Value, m.Timestamp.Unix())
 }
 
-func expandPlaceHolder(src string, data interface{}) (string, error) {
+func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
 	if strings.Index(src, "{{") == -1 {
 		// no need to expand
 		return src, nil
@@ -61,7 +61,7 @@ func expandPlaceHolder(src string, data interface{}) (string, error) {
 	}
 	var b strings.Builder
 	b.Grow(len(src))
-	err = tmpl.Execute(&b, data)
+	err = tmpl.Execute(&b, templateParam{Host: host})
 	return b.String(), err
 }
 

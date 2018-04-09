@@ -12,7 +12,7 @@ import (
 
 var commandProbesConfig = []*maprobe.CommandProbeConfig{
 	&maprobe.CommandProbeConfig{
-		Command: `sh -c 'echo "test.{{ .ID }}.ok\t1\t1523261168"'`,
+		Command: `sh -c 'echo "test.{{ .Host.ID }}.ok\t1\t1523261168"'`,
 	},
 }
 
