@@ -4,22 +4,30 @@ Mackerel external probe agent.
 
 ## Description
 
-maprobe is a external probe agent with [Mackerel](https://mackerel.io).
+maprobe is an external probe agent with [Mackerel](https://mackerel.io).
 
 maprobe works as below.
 
 1. Fetch hosts information from Mackerel API.
-  - Specified service and role.
-1. Execute probes (ping, tcp, http, command) to the hosts.
-  - expand place holder `{{ .Host }}` as [Mackerel host struct](https://godoc.org/github.com/mackerelio/mackerel-client-go#Host).
-  - `{{ .Host.IPAddress.eth0 }}` expand to e.g. `192.168.1.1`
+   - Filtered service and role.
+1. For each hosts, execute probes (ping, tcp, http, command).
+   - expand place holder in configuration `{{ .Host }}` as [Mackerel host struct](https://godoc.org/github.com/mackerelio/mackerel-client-go#Host).
+   - `{{ .Host.IPAddress.eth0 }}` expand to e.g. `192.168.1.1`
 1. Post host metrics to Mackerel.
-
+1. Iterates these processes each 60 sec.
 
 ## Configuration
 
+```
+$ maprobe -config config.yaml [-log-level {trace|debug|info|warn|error}]
+```
+
+`MACKEREL_APIKEY` environment variable is required.
+
+### Example
+
 ```yaml
-probe_only: false   # when true, do not post metrics. only dump to debug log.
+probe_only: false   # when true, do not post metrics to Mackerel. only dump to debug log.
 probes:
   - service: production
     role: server
@@ -27,15 +35,14 @@ probes:
       address: '{{ .Host.IPAddresses.eth0 }}'
 
   - service: production
-    role: load_balancer
+    role: webserver
     http:
-      url: 'http://{{ .Host.CustomIdentifier }}/ping'
+      url: 'http://{{ .Host.CustomIdentifier }}/api/healthcheck'
       post: POST
       headers:
-        Cache-Control: no-cache
         Content-Type: application/json
       body: '{"hello":"world"}'
-      expect_pattern: '^ok'
+      expect_pattern: 'ok'
 
   - service: production
     role: redis
@@ -48,6 +55,86 @@ probes:
     command:
       command: "mackerel-plugin-redis -host {{ .Host.IPAddress.eth0 }} -tempfile /tmp/redis-{{ .Host.ID }}"
 ```
+
+### Ping
+
+Ping probe sends ICMP ping to the address.
+
+```yaml
+ping:
+  address: "192.168.1.1"      # Hostname or IP address (required)
+  count: 5                    # Iteration count (default 3)
+  timeout: "500ms"            # Timeout to ping response (default 1 sec)
+  metric_key_prefix:          # default ping
+```
+
+Ping probe generates the following metrics.
+
+- ping.count.success (count)
+- ping.count.failure (count)
+- ping.rtt.min (seconds)
+- ping.rtt.max (seconds)
+- ping.rtt.avg (seconds)
+
+### TCP
+
+TCP probe connects to host:port by TCP (or TLS).
+
+```yaml
+tcp:
+  host: "memcached.example.com" # Hostname or IP Address (required)
+  port: 11211                   # Port number (required)
+  timeout: 10s                  # Seconds of timeout (default 5)
+  send: "VERSION\n"             # String to send to the server
+  quit: "QUIT\n"                # String to send server to initiate a clean close of the connection"
+  expect_pattern: "^VERSION 1"  # Regexp pattern to expect in server response
+  tls: false                    # Use TLS for connection
+  no_check_certificate: false   # Do not check certificate
+  metric_key_prefix:            # default tcp
+```
+
+TCP probe generates the following metrics.
+
+- tcp.check.ok (0 or 1)
+- tcp.elapsed.seconds (seconds)
+
+### HTTP
+
+HTTP probe sends a HTTP request to url.
+
+```yaml
+http:
+  url: "http://example.com/"     # URL
+  method: "GET"                  # Method of request (default GET)
+  headers:                       # Map of request header
+    Foo: "bar"
+  body: ""                       # Body of request
+  expect_pattern: "ok"           # Regexp pattern to expect in server response
+  timeout: 10s                   # Seconds of request timeout (default 15)
+  no_check_certificate: false    # Do not check certificate
+  metric_key_prefix:             # default http
+```
+
+HTTP probe generates the following metrics.
+
+- http.check.ok (0 or 1)
+- http.response_time.seconds (seconds)
+- http.status.code (100~)
+- http.content.length (bytes)
+
+When a status code is grather than 400, http.check.ok set to 0.
+
+### Command
+
+Command probe executes command which outputs like Mackerel metric plugin.
+
+```yaml
+command:
+  command: "/path/to/metric-command" # Path to execute command
+  timeout: "5s"                      # Seconds of command timeout (default 15)
+```
+
+Command probe handles command's output as host metric.
 
 ## Author
 
