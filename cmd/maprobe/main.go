@@ -5,10 +5,19 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/fujiwara/maprobe"
 	"github.com/hashicorp/logutils"
 )
+
+var trapSignals = []os.Signal{
+	syscall.SIGHUP,
+	syscall.SIGINT,
+	syscall.SIGTERM,
+	syscall.SIGQUIT,
+}
 
 func main() {
 	var config, logLevel string
@@ -23,9 +32,23 @@ func main() {
 	}
 	log.SetOutput(filter)
 
-	err := maprobe.Run(context.Background(), config)
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, trapSignals...)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		sig := <-sigCh
+		log.Println("[info] SIGNAL", sig, "shutting down")
+		cancel()
+	}()
+
+	if err := maprobe.Run(ctx, config); err != nil {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			log.Println("[error]", err)
+			os.Exit(1)
+		}
 	}
 }
