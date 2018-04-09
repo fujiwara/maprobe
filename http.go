@@ -135,6 +135,7 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	for name, value := range p.Headers {
 		req.Header.Set(name, value)
 	}
+	req.Header.Set("Connection", "close") // do not keep alive to health check.
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: p.NoCheckCertificate},

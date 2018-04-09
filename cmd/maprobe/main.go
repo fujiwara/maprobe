@@ -26,7 +26,7 @@ func main() {
 	flag.Parse()
 
 	filter := &logutils.LevelFilter{
-		Levels:   []logutils.LogLevel{"debug", "info", "warn", "error"},
+		Levels:   []logutils.LogLevel{"trace", "debug", "info", "warn", "error"},
 		MinLevel: logutils.LogLevel(logLevel),
 		Writer:   os.Stderr,
 	}

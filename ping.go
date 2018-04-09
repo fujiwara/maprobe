@@ -74,6 +74,7 @@ func (p *PingProbe) String() string {
 func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	var ms Metrics
 
+	log.Printf("[debug] run ping to %s", p.Address)
 	pinger := fping.NewPinger()
 	ipaddr, err := net.ResolveIPAddr("ip", p.Address)
 	if err != nil {
@@ -81,13 +82,14 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		ms = append(ms, newMetric(p, "count.failure", 1))
 		return ms, errors.Wrap(err, "resolve failed")
 	}
+	log.Printf("[debug] %s resolved to %s", p.Address, ipaddr)
 	pinger.AddIPAddr(ipaddr)
 
 	var min, max, total, avg time.Duration
 	var successCount, failureCount int
 	pinger.MaxRTT = p.Timeout
 	pinger.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
-		log.Println("[debug] OnRecv")
+		log.Println("[debug] OnRecv RTT", rtt)
 		successCount++
 		if min == 0 || max == 0 {
 			min = rtt
@@ -124,6 +126,7 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		ms = append(ms, newMetric(p, "rtt.max", max.Seconds()))
 		ms = append(ms, newMetric(p, "rtt.avg", avg.Seconds()))
 	}
-	log.Println("[debug]", ms.String())
+	log.Println("[trace]", ms.String())
+
 	return ms, nil
 }
