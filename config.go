@@ -17,12 +17,13 @@ type Config struct {
 }
 
 type ProbeConfig struct {
-	Service string           `yaml:"service"`
-	Role    string           `yaml:"role"`
-	Roles   []string         `yaml:"roles"`
-	Ping    *PingProbeConfig `yaml:"ping"`
-	TCP     *TCPProbeConfig  `yaml:"tcp"`
-	HTTP    *HTTPProbeConfig `yaml:"http"`
+	Service string              `yaml:"service"`
+	Role    string              `yaml:"role"`
+	Roles   []string            `yaml:"roles"`
+	Ping    *PingProbeConfig    `yaml:"ping"`
+	TCP     *TCPProbeConfig     `yaml:"tcp"`
+	HTTP    *HTTPProbeConfig    `yaml:"http"`
+	Command *CommandProbeConfig `yaml:"command"`
 }
 
 func (pc *ProbeConfig) GenerateProbes(host *mackerel.Host) []Probe {
@@ -50,6 +51,15 @@ func (pc *ProbeConfig) GenerateProbes(host *mackerel.Host) []Probe {
 		p, err := httpConfig.GenerateProbe(host)
 		if err != nil {
 			log.Printf("[error] cannot generate http probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+		} else {
+			probes = append(probes, p)
+		}
+	}
+
+	if commandConfig := pc.Command; commandConfig != nil {
+		p, err := commandConfig.GenerateProbe(host)
+		if err != nil {
+			log.Printf("[error] cannot generate command probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
