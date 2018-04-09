@@ -31,11 +31,13 @@ type TCPProbeConfig struct {
 	ExpectPattern      string        `yaml:"expect_pattern"`
 	TLS                bool          `yaml:"tls"`
 	NoCheckCertificate bool          `yaml:"no_check_certificate"`
+	MetricKeyPrefix    string        `yaml:"metric_key_prefix"`
 }
 
 func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (*TCPProbe, error) {
 	p := &TCPProbe{
 		hostID:             host.ID,
+		metricKeyPrefix:    pc.MetricKeyPrefix,
 		Timeout:            pc.Timeout,
 		MaxBytes:           pc.MaxBytes,
 		TLS:                pc.TLS,

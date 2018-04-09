@@ -28,11 +28,13 @@ type HTTPProbeConfig struct {
 	ExpectPattern      string            `yaml:"expect_pattern"`
 	Timeout            time.Duration     `yaml:"timeout"`
 	NoCheckCertificate bool              `yaml:"no_check_certificate"`
+	MetricKeyPrefix    string            `yaml:"metric_key_prefix"`
 }
 
 func (pc *HTTPProbeConfig) GenerateProbe(host *mackerel.Host) (*HTTPProbe, error) {
 	p := &HTTPProbe{
 		hostID:             host.ID,
+		metricKeyPrefix:    pc.MetricKeyPrefix,
 		Timeout:            pc.Timeout,
 		NoCheckCertificate: pc.NoCheckCertificate,
 	}
@@ -153,12 +155,14 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 		ok = false
 	}
 
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("[warn] HTTP read body failed", err)
+		return ms, errors.Wrap(err, "read body failed")
+	}
+	ms = append(ms, newMetric(p, "content.length", float64(len(body))))
+
 	if p.ExpectPattern != nil {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Println("[warn] HTTP read body failed", err)
-			return ms, errors.Wrap(err, "read body failed")
-		}
 		if !p.ExpectPattern.Match(body) {
 			return ms, errors.Wrap(err, "unexpected response")
 		}
