@@ -17,10 +17,26 @@
   revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
 
 [[projects]]
+  name = "github.com/google/gops"
+  packages = [
+    "agent",
+    "internal",
+    "signal"
+  ]
+  revision = "0e2aa5d22efec1603f7ded7097c500e9a36a13b3"
+  version = "v0.3.3"
+
+[[projects]]
   branch = "master"
   name = "github.com/hashicorp/logutils"
   packages = ["."]
   revision = "0dc08b1671f34c4250ce212759ebd880f743d883"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
 
 [[projects]]
   branch = "master"
@@ -74,6 +90,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f4c1742615fb6062120d85334b2dd5070b353867fe60a39cb7b20b866e739ad7"
+  inputs-digest = "73da200962eabfb766b46af8dc558db90d6dc1a979346a20af467bc3ca260034"
   solver-name = "gps-cdcl"
   solver-version = 1

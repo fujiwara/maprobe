@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/fujiwara/maprobe"
+	gops "github.com/google/gops/agent"
 	"github.com/hashicorp/logutils"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -54,6 +55,10 @@ var (
 )
 
 func main() {
+	if err := gops.Listen(gops.Options{}); err != nil {
+		log.Fatal(err)
+	}
+
 	var err error
 
 	sub, err := app.Parse(os.Args[1:])
