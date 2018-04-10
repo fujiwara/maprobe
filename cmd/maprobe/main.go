@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -34,6 +35,7 @@ var (
 	pingAddress = ping.Arg("address", "Hostname or IP address").Required().String()
 	pingCount   = ping.Flag("count", "Iteration count").Short('c').Int()
 	pingTimeout = ping.Flag("timeout", "Timeout to ping response").Short('t').Duration()
+	pingHostID  = ping.Flag("host-id", "Mackerel host ID").Short('i').String()
 
 	tcp                   = app.Command("tcp", "Run TCP probe")
 	tcpHost               = tcp.Arg("host", "Hostname or IP address").Required().String()
@@ -43,6 +45,7 @@ var (
 	tcpTimeout            = tcp.Flag("timeout", "Timeout").Short('t').Duration()
 	tcpExpectPattern      = tcp.Flag("expect", "Regexp pattern to expect in server response").Short('e').String()
 	tcpNoCheckCertificate = tcp.Flag("no-check-certificate", "Do not check certificate").Short('k').Bool()
+	tcpHostID             = tcp.Flag("host-id", "Mackerel host ID").Short('i').String()
 
 	http                   = app.Command("http", "Run HTTP probe")
 	httpURL                = http.Arg("url", "URL").Required().String()
@@ -52,6 +55,7 @@ var (
 	httpTimeout            = http.Flag("timeout", "Timeout").Short('t').Duration()
 	httpNoCheckCertificate = http.Flag("no-check-certificate", "Do not check certificate").Short('k').Bool()
 	httpHeaders            = HTTPHeader(http.Flag("header", "Request headers").Short('H').PlaceHolder("Header: Value"))
+	httpHostID             = http.Flag("host-id", "Mackerel host ID").Short('i').String()
 )
 
 func main() {
@@ -101,13 +105,13 @@ func main() {
 	case "agent":
 		err = maprobe.Run(ctx, *agentConfig)
 	case "ping":
-		err = runProbe(ctx, &maprobe.PingProbeConfig{
+		err = runProbe(ctx, *pingHostID, &maprobe.PingProbeConfig{
 			Address: *pingAddress,
 			Count:   *pingCount,
 			Timeout: *pingTimeout,
 		})
 	case "tcp":
-		err = runProbe(ctx, &maprobe.TCPProbeConfig{
+		err = runProbe(ctx, *tcpHostID, &maprobe.TCPProbeConfig{
 			Host:               *tcpHost,
 			Port:               *tcpPort,
 			Timeout:            *tcpTimeout,
@@ -117,7 +121,7 @@ func main() {
 			NoCheckCertificate: *tcpNoCheckCertificate,
 		})
 	case "http":
-		err = runProbe(ctx, &maprobe.HTTPProbeConfig{
+		err = runProbe(ctx, *httpHostID, &maprobe.HTTPProbeConfig{
 			URL:                *httpURL,
 			Method:             *httpMethod,
 			Body:               *httpBody,
@@ -140,9 +144,24 @@ func main() {
 	}
 }
 
-func runProbe(ctx context.Context, pc maprobe.ProbeConfig) error {
+func mackerelHost(id string) (*mackerel.Host, error) {
+	if apikey := os.Getenv("MACKEREL_APIKEY"); id != "" && apikey != "" {
+		log.Printf("[debug] finding host id:%s", id)
+		client := mackerel.NewClient(apikey)
+		return client.FindHost(id)
+	}
+	log.Printf("[debug] using dummy host")
+	return &mackerel.Host{ID: "dummy"}, nil
+}
+
+func runProbe(ctx context.Context, id string, pc maprobe.ProbeConfig) error {
 	log.Printf("[debug] %#v", pc)
-	p, err := pc.GenerateProbe(&mackerel.Host{ID: "dummy"})
+	host, err := mackerelHost(id)
+	if err != nil {
+		return err
+	}
+	log.Printf("[debug] host: %s", marshalJSON(host))
+	p, err := pc.GenerateProbe(host)
 	if err != nil {
 		return err
 	}
@@ -184,4 +203,9 @@ func HTTPHeader(s kingpin.Settings) (target *httpHeader) {
 	}
 	s.SetValue((*httpHeader)(target))
 	return
+}
+
+func marshalJSON(i interface{}) string {
+	b, _ := json.Marshal(i)
+	return string(b)
 }
