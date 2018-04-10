@@ -25,7 +25,7 @@ type PingProbeConfig struct {
 	MetricKeyPrefix string        `yaml:"metric_key_prefix"`
 }
 
-func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (*PingProbe, error) {
+func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &PingProbe{
 		hostID:          host.ID,
 		metricKeyPrefix: pc.MetricKeyPrefix,
@@ -37,6 +37,10 @@ func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (*PingProbe, error
 	} else {
 		p.Address = addr
 	}
+	if p.Address == "" {
+		return nil, errors.New("no address")
+	}
+
 	if p.Count == 0 {
 		p.Count = DefaultPingCount
 	}

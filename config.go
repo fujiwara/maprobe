@@ -11,12 +11,12 @@ import (
 )
 
 type Config struct {
-	APIKey       string         `yaml:"apikey"`
-	ProbesConfig []*ProbeConfig `yaml:"probes"`
-	ProbeOnly    bool           `yaml:"probe_only"`
+	APIKey    string             `yaml:"apikey"`
+	Probes    []*ProbeDefinition `yaml:"probes"`
+	ProbeOnly bool               `yaml:"probe_only"`
 }
 
-type ProbeConfig struct {
+type ProbeDefinition struct {
 	Service string              `yaml:"service"`
 	Role    string              `yaml:"role"`
 	Roles   []string            `yaml:"roles"`
@@ -26,7 +26,7 @@ type ProbeConfig struct {
 	Command *CommandProbeConfig `yaml:"command"`
 }
 
-func (pc *ProbeConfig) GenerateProbes(host *mackerel.Host) []Probe {
+func (pc *ProbeDefinition) GenerateProbes(host *mackerel.Host) []Probe {
 	var probes []Probe
 
 	if pingConfig := pc.Ping; pingConfig != nil {
@@ -79,9 +79,9 @@ func LoadConfig(path string) (*Config, error) {
 	if err := yaml.Unmarshal(b, &c); err != nil {
 		return nil, err
 	}
-	for _, pc := range c.ProbesConfig {
-		if pc.Role != "" {
-			pc.Roles = append(pc.Roles, pc.Role)
+	for _, pd := range c.Probes {
+		if pd.Role != "" {
+			pd.Roles = append(pd.Roles, pd.Role)
 		}
 	}
 

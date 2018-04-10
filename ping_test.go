@@ -24,6 +24,6 @@ func TestPing(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		t.Log(probe.Address, ms.String())
+		t.Log(ms.String())
 	}
 }

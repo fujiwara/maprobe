@@ -16,6 +16,10 @@ type Probe interface {
 	MetricName(string) string
 }
 
+type ProbeConfig interface {
+	GenerateProbe(host *mackerel.Host) (Probe, error)
+}
+
 type Metrics []Metric
 
 func (ms Metrics) String() string {

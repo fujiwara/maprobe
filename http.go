@@ -31,7 +31,7 @@ type HTTPProbeConfig struct {
 	MetricKeyPrefix    string            `yaml:"metric_key_prefix"`
 }
 
-func (pc *HTTPProbeConfig) GenerateProbe(host *mackerel.Host) (*HTTPProbe, error) {
+func (pc *HTTPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &HTTPProbe{
 		hostID:             host.ID,
 		metricKeyPrefix:    pc.MetricKeyPrefix,

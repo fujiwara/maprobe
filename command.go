@@ -24,7 +24,7 @@ type CommandProbeConfig struct {
 	Timeout time.Duration `yaml:"timeout"`
 }
 
-func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host) (*CommandProbe, error) {
+func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &CommandProbe{
 		hostID:  host.ID,
 		Timeout: pc.Timeout,

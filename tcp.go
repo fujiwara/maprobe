@@ -34,7 +34,7 @@ type TCPProbeConfig struct {
 	MetricKeyPrefix    string        `yaml:"metric_key_prefix"`
 }
 
-func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (*TCPProbe, error) {
+func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &TCPProbe{
 		hostID:             host.ID,
 		metricKeyPrefix:    pc.MetricKeyPrefix,
@@ -139,6 +139,7 @@ func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 		return ms, errors.Wrap(err, "connect failed")
 	}
 	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(p.Timeout))
 
 	log.Println("[debug] connected", addr)
 	if p.Send != "" {

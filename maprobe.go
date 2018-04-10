@@ -43,24 +43,24 @@ func Run(ctx context.Context, configPath string) error {
 	}
 
 	var wg sync.WaitGroup
-	for _, pc := range conf.ProbesConfig {
+	for _, pd := range conf.Probes {
 		wg.Add(1)
 		time.Sleep(time.Second)
-		go runProbeConfig(ctx, pc, client, ch, &wg)
+		go runProbes(ctx, pd, client, ch, &wg)
 	}
 	wg.Wait()
 
 	return nil
 }
 
-func runProbeConfig(ctx context.Context, pc *ProbeConfig, client *mackerel.Client, ch chan Metric, wg *sync.WaitGroup) {
+func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client, ch chan Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
 	ticker := time.NewTicker(ProbeInterval)
 	for {
-		log.Printf("[debug] finding hosts service:%s roles:%s", pc.Service, pc.Roles)
+		log.Printf("[debug] finding hosts service:%s roles:%s", pd.Service, pd.Roles)
 		hosts, err := client.FindHosts(&mackerel.FindHostsParam{
-			Service: pc.Service,
-			Roles:   pc.Roles,
+			Service: pd.Service,
+			Roles:   pd.Roles,
 		})
 		if err != nil {
 			log.Println("[error]", err)
@@ -87,7 +87,7 @@ func runProbeConfig(ctx context.Context, pc *ProbeConfig, client *mackerel.Clien
 				lock()
 				defer unlock()
 				defer wg2.Done()
-				for _, probe := range pc.GenerateProbes(host) {
+				for _, probe := range pd.GenerateProbes(host) {
 					log.Printf("[debug] probing host id:%s name:%s probe:%s", host.ID, host.Name, probe)
 					metrics, err := probe.Run(ctx)
 					if err != nil {

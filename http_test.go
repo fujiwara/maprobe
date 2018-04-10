@@ -41,7 +41,7 @@ func TestHTTP(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(ms) != 3 {
+	if len(ms) != 4 {
 		t.Error("unexpected metrics num")
 	}
 	for _, m := range ms {
@@ -57,6 +57,10 @@ func TestHTTP(t *testing.T) {
 		case "http.status.code":
 			if m.Value != 200 {
 				t.Errorf("unexpected status %f", m.Value)
+			}
+		case "http.content.length":
+			if m.Value != 15 {
+				t.Errorf("unexpected content length %f", m.Value)
 			}
 		}
 	}
