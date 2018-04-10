@@ -170,6 +170,29 @@ command:
 
 Command probe handles command's output as host metric.
 
+#### Example of automated cleanup for terminated EC2 instances.
+
+Command probe can run any scripts against for Mackerel hosts.
+
+For example,
+
+```yaml
+command:
+  command: 'cleanup.sh {{.Host.ID}} {{index .Host.Meta.Cloud.MetaData "instance-id"}}'
+```
+
+cleanup.sh checks an instance status, retire a Mackerel host when the instance is not exists.
+
+```bash
+#!/bin/bash
+set -u
+host_id="$1"
+instance_id="$2"
+exec 1> /dev/null # dispose stdout
+aws ec2 describe-instance-status --instance-id "${instance_id}" || mkr retire --force "${host_id}"
+### XXX must retry...
+```
+
 ## Author
 
 Fujiwara Shunichiro <fujiwara.shunichiro@gmail.com>
