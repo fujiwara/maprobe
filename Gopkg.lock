@@ -3,6 +3,21 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/alecthomas/template"
+  packages = [
+    ".",
+    "parse"
+  ]
+  revision = "a0175ee3bccc567396460bf5acd36800cb10c49c"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/alecthomas/units"
+  packages = ["."]
+  revision = "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
+
+[[projects]]
+  branch = "master"
   name = "github.com/hashicorp/logutils"
   packages = ["."]
   revision = "0dc08b1671f34c4250ce212759ebd880f743d883"
@@ -12,6 +27,12 @@
   name = "github.com/mackerelio/mackerel-client-go"
   packages = ["."]
   revision = "458a40e9ccd85aa429f2894ea94f94d35bebd49f"
+
+[[projects]]
+  name = "github.com/mattn/go-shellwords"
+  packages = ["."]
+  revision = "02e3cf038dcea8290e44424da473dd12be796a8a"
+  version = "v1.0.3"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -39,6 +60,12 @@
   revision = "6078986fec03a1dcc236c34816c71b0e05018fda"
 
 [[projects]]
+  name = "gopkg.in/alecthomas/kingpin.v2"
+  packages = ["."]
+  revision = "947dcec5ba9c011838740e680966fd7087a71d0d"
+  version = "v2.2.6"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
@@ -47,6 +74,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "15c3b3ff72c8e30f2fe064e1c9788053ac76aa9a475b5967189564a6abb32d3c"
+  inputs-digest = "f4c1742615fb6062120d85334b2dd5070b353867fe60a39cb7b20b866e739ad7"
   solver-name = "gps-cdcl"
   solver-version = 1
