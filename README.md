@@ -16,15 +16,49 @@ maprobe works as below.
 1. Post host metrics to Mackerel.
 1. Iterates these processes each 60 sec.
 
-## Configuration
+## Usage
 
 ```
-$ maprobe -config config.yaml [-log-level {trace|debug|info|warn|error}]
+usage: maprobe [<flags>] <command> [<args> ...]
+
+Flags:
+  --help              Show context-sensitive help (also try --help-long and --help-man).
+  --log-level="info"  log level
+
+Commands:
+  help [<command>...]
+    Show help.
+
+  agent [<flags>]
+    Run agent
+
+  ping [<flags>] <address>
+    Run ping probe
+
+  tcp [<flags>] <host> <port>
+    Run TCP probe
+
+  http [<flags>] <url>
+    Run HTTP probe
 ```
+
+### agent
 
 `MACKEREL_APIKEY` environment variable is required.
 
-### Example
+```
+$ maprobe agent --help
+usage: maprobe agent [<flags>]
+
+Run agent
+
+Flags:
+      --help              Show context-sensitive help (also try --help-long and --help-man).
+      --log-level="info"  log level
+  -c, --config=CONFIG     configuration file
+```
+
+### Example Configuration
 
 ```yaml
 probe_only: false   # when true, do not post metrics to Mackerel. only dump to debug log.
