@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/fujiwara/maprobe"
@@ -101,9 +102,11 @@ func main() {
 		}
 	}()
 
+	var wg sync.WaitGroup
 	switch sub {
 	case "agent":
-		err = maprobe.Run(ctx, *agentConfig)
+		wg.Add(1)
+		err = maprobe.Run(ctx, &wg, *agentConfig)
 	case "ping":
 		err = runProbe(ctx, *pingHostID, &maprobe.PingProbeConfig{
 			Address: *pingAddress,
@@ -133,6 +136,7 @@ func main() {
 	default:
 		err = fmt.Errorf("command %s not exist", sub)
 	}
+	wg.Wait()
 	select {
 	case <-ctx.Done():
 		return

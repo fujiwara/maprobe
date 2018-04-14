@@ -20,19 +20,22 @@ var (
 
 func lock() {
 	sem <- struct{}{}
+	log.Printf("[trace] locked. concurrency: %d", len(sem))
 }
 
 func unlock() {
 	<-sem
+	log.Printf("[trace] unlocked. concurrency: %d", len(sem))
 }
 
-func Run(ctx context.Context, configPath string) error {
+func Run(ctx context.Context, wg *sync.WaitGroup, configPath string) error {
+	defer wg.Done()
 	log.Println("[info] starting maprobe")
 	conf, err := LoadConfig(configPath)
 	if err != nil {
 		return err
 	}
-	log.Println("[debug]", conf)
+	log.Println("[debug]", conf.String())
 	client := mackerel.NewClient(conf.APIKey)
 	ch := make(chan Metric, PostMetricBufferLength*10)
 
@@ -42,70 +45,78 @@ func Run(ctx context.Context, configPath string) error {
 		go postMetricWorker(ctx, client, ch)
 	}
 
-	var wg sync.WaitGroup
-	for _, pd := range conf.Probes {
-		wg.Add(1)
-		time.Sleep(time.Second)
-		go runProbes(ctx, pd, client, ch, &wg)
-	}
-	wg.Wait()
+	ticker := time.NewTicker(ProbeInterval)
+	for {
+		var wg2 sync.WaitGroup
+		for _, pd := range conf.Probes {
+			wg2.Add(1)
+			go runProbes(ctx, pd, client, ch, &wg2)
+		}
+		wg2.Wait()
 
+		log.Println("[debug] waiting for a next tick")
+		select {
+		case <-ctx.Done():
+			log.Println("[info] stopping maprobe")
+			return nil
+		case <-ticker.C:
+		}
+		var reloaded bool
+		conf, reloaded, err = conf.Reload()
+		if err != nil {
+			log.Println("[warn]", err)
+			log.Println("[warn] still using current config")
+		}
+		if reloaded {
+			log.Println("[debug]", conf)
+		}
+	}
 	return nil
 }
 
 func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client, ch chan Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	ticker := time.NewTicker(ProbeInterval)
-	for {
-		log.Printf("[debug] finding hosts service:%s roles:%s", pd.Service, pd.Roles)
-		hosts, err := client.FindHosts(&mackerel.FindHostsParam{
-			Service: pd.Service,
-			Roles:   pd.Roles,
-		})
-		if err != nil {
-			log.Println("[error]", err)
-			time.Sleep(mackerelRetryInterval)
-			continue
-		}
-		log.Printf("[debug] %d hosts found", len(hosts))
-		if len(hosts) == 0 {
-			time.Sleep(mackerelRetryInterval)
-			continue
-		}
-
-		spawnInterval := time.Duration(int64(ProbeInterval) / int64(len(hosts)) / 2)
-		if spawnInterval > time.Second {
-			spawnInterval = time.Second
-		}
-
-		var wg2 sync.WaitGroup
-		for _, host := range hosts {
-			time.Sleep(spawnInterval)
-			log.Printf("[debug] preparing host id:%s name:%s", host.ID, host.Name)
-			wg2.Add(1)
-			go func(host *mackerel.Host) {
-				lock()
-				defer unlock()
-				defer wg2.Done()
-				for _, probe := range pd.GenerateProbes(host) {
-					log.Printf("[debug] probing host id:%s name:%s probe:%s", host.ID, host.Name, probe)
-					metrics, err := probe.Run(ctx)
-					if err != nil {
-						log.Printf("[warn] probe failed. %s host id:%s name:%s probe:%s", err, host.ID, host.Name, probe)
-					}
-					for _, m := range metrics {
-						ch <- m
-					}
-				}
-			}(host)
-		}
-		wg2.Wait()
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
+	log.Printf("[debug] finding hosts service:%s roles:%s", pd.Service, pd.Roles)
+	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
+		Service: pd.Service,
+		Roles:   pd.Roles,
+	})
+	if err != nil {
+		log.Println("[error]", err)
+		return
 	}
+	log.Printf("[debug] %d hosts found", len(hosts))
+	if len(hosts) == 0 {
+		return
+	}
+
+	spawnInterval := time.Duration(int64(ProbeInterval) / int64(len(hosts)) / 2)
+	if spawnInterval > time.Second {
+		spawnInterval = time.Second
+	}
+
+	var wg2 sync.WaitGroup
+	for _, host := range hosts {
+		time.Sleep(spawnInterval)
+		log.Printf("[debug] preparing host id:%s name:%s", host.ID, host.Name)
+		wg2.Add(1)
+		go func(host *mackerel.Host) {
+			lock()
+			defer unlock()
+			defer wg2.Done()
+			for _, probe := range pd.GenerateProbes(host) {
+				log.Printf("[debug] probing host id:%s name:%s probe:%s", host.ID, host.Name, probe)
+				metrics, err := probe.Run(ctx)
+				if err != nil {
+					log.Printf("[warn] probe failed. %s host id:%s name:%s probe:%s", err, host.ID, host.Name, probe)
+				}
+				for _, m := range metrics {
+					ch <- m
+				}
+			}
+		}(host)
+	}
+	wg2.Wait()
 }
 
 func postMetricWorker(ctx context.Context, client *mackerel.Client, ch chan Metric) {
