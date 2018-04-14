@@ -34,5 +34,5 @@ clean:
 	rm -fr dist/*
 
 release: dist
-	ghr -u fujiwara -r sardine $(LATEST_TAG) dist/snapshot/
+	ghr -u fujiwara -r maprobe $(LATEST_TAG) dist/snapshot/
 
