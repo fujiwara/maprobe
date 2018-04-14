@@ -55,8 +55,11 @@ Run agent
 Flags:
       --help              Show context-sensitive help (also try --help-long and --help-man).
       --log-level="info"  log level
-  -c, --config=CONFIG     configuration file
+  -c, --config=CONFIG     configuration file path or URL(http|s3)
 ```
+
+`--config` accepts a local file path or URL(http, https or s3 scheme).
+maprobe checks the config is modified, and reload in run time.
 
 ### Example Configuration
 

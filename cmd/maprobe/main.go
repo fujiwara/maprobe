@@ -30,7 +30,7 @@ var (
 	logLevel = app.Flag("log-level", "log level").Default("info").String()
 
 	agent       = app.Command("agent", "Run agent")
-	agentConfig = agent.Flag("config", "configuration file").Short('c').String()
+	agentConfig = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').String()
 
 	ping        = app.Command("ping", "Run ping probe")
 	pingAddress = ping.Arg("address", "Hostname or IP address").Required().String()
