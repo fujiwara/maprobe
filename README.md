@@ -61,6 +61,8 @@ Flags:
 `--config` accepts a local file path or URL(http, https or s3 scheme).
 maprobe checks the config is modified, and reload in run time.
 
+Defaults of `--config` and `--log-level` will be overrided from envrionment variables (`CONFIG` and `LOG_LEVEL`).
+
 ### Example Configuration
 
 ```yaml
