@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"reflect"
 	"sync"
 	"time"
 
@@ -61,13 +62,15 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string) error {
 			return nil
 		case <-ticker.C:
 		}
-		var reloaded bool
-		conf, reloaded, err = conf.Reload()
+
+		log.Println("[debug] checking a new config")
+		newConf, err := LoadConfig(configPath)
 		if err != nil {
 			log.Println("[warn]", err)
 			log.Println("[warn] still using current config")
-		}
-		if reloaded {
+		} else if !reflect.DeepEqual(conf, newConf) {
+			conf = newConf
+			log.Println("[info] config reloaded")
 			log.Println("[debug]", conf)
 		}
 	}

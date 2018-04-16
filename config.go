@@ -1,7 +1,6 @@
 package maprobe
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -21,7 +20,6 @@ import (
 
 type Config struct {
 	location string
-	source   []byte
 
 	APIKey    string             `yaml:"apikey"`
 	Probes    []*ProbeDefinition `yaml:"probes"`
@@ -89,7 +87,6 @@ func LoadConfig(location string) (*Config, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "load config failed")
 	}
-	c.source = b
 	if err := yaml.Unmarshal(b, c); err != nil {
 		return nil, err
 	}
@@ -132,29 +129,6 @@ func (c *Config) fetch() ([]byte, error) {
 func (c *Config) String() string {
 	b, _ := json.Marshal(c)
 	return string(b)
-}
-
-func (c *Config) Reload() (*Config, bool, error) {
-	log.Println("[debug] reload config")
-	b, err := c.fetch()
-	if err != nil {
-		return c, false, errors.Wrap(err, "failed to fetch config")
-	}
-	if bytes.Equal(b, c.source) {
-		// not changed
-		return c, false, nil
-	}
-	log.Println("[info] new config available. reloading")
-	c2 := &Config{
-		location: c.location,
-		source:   b,
-		APIKey:   os.Getenv("MACKEREL_APIKEY"),
-	}
-	if err := yaml.Unmarshal(b, c2); err != nil {
-		return c, false, errors.Wrap(err, "failed to load a new config")
-	}
-	c2.initialize()
-	return c2, true, nil
 }
 
 func fetchHTTP(u *url.URL) ([]byte, error) {
