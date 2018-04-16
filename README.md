@@ -192,8 +192,12 @@ set -u
 host_id="$1"
 instance_id="$2"
 exec 1> /dev/null # dispose stdout
-aws ec2 describe-instance-status --instance-id "${instance_id}" || mkr retire --force "${host_id}"
-### XXX must retry...
+result=$(aws ec2 describe-instance-status --instance-id "${instance_id}" 2>&1)
+if [[ $? == 0 ]]; then
+  exit
+elif [[ $result =~ "InvalidInstanceID.NotFound" ]]; then
+   mkr retire --force "${host_id}"
+fi
 ```
 
 ## Author
