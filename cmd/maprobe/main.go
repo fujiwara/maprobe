@@ -27,10 +27,10 @@ var (
 	}
 
 	app      = kingpin.New("maprobe", "")
-	logLevel = app.Flag("log-level", "log level").Default("info").String()
+	logLevel = app.Flag("log-level", "log level").Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").String()
 
 	agent       = app.Command("agent", "Run agent")
-	agentConfig = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').String()
+	agentConfig = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
 
 	ping        = app.Command("ping", "Run ping probe")
 	pingAddress = ping.Arg("address", "Hostname or IP address").Required().String()
@@ -137,6 +137,7 @@ func main() {
 		err = fmt.Errorf("command %s not exist", sub)
 	}
 	wg.Wait()
+	log.Println("[info] shutdown")
 	select {
 	case <-ctx.Done():
 		return
