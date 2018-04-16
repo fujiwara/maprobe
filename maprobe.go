@@ -31,6 +31,8 @@ func unlock() {
 
 func Run(ctx context.Context, wg *sync.WaitGroup, configPath string) error {
 	defer wg.Done()
+	defer log.Println("[info] stopping maprobe")
+
 	log.Println("[info] starting maprobe")
 	conf, err := LoadConfig(configPath)
 	if err != nil {
@@ -38,12 +40,15 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string) error {
 	}
 	log.Println("[debug]", conf.String())
 	client := mackerel.NewClient(conf.APIKey)
+
 	ch := make(chan Metric, PostMetricBufferLength*10)
+	defer close(ch)
 
 	if conf.ProbeOnly {
-		go dumpMetricWorker(ctx, ch)
+		go dumpMetricWorker(ch)
 	} else {
-		go postMetricWorker(ctx, client, ch)
+		wg.Add(1)
+		go postMetricWorker(wg, client, ch)
 	}
 
 	ticker := time.NewTicker(ProbeInterval)
@@ -58,7 +63,6 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string) error {
 		log.Println("[debug] waiting for a next tick")
 		select {
 		case <-ctx.Done():
-			log.Println("[info] stopping maprobe")
 			return nil
 		case <-ticker.C:
 		}
@@ -122,18 +126,24 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 	wg2.Wait()
 }
 
-func postMetricWorker(ctx context.Context, client *mackerel.Client, ch chan Metric) {
+func postMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan Metric) {
+	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
 	mvs := make([]*mackerel.HostMetricValue, 0, PostMetricBufferLength)
-	for {
+	run := true
+	for run {
 		select {
-		case <-ctx.Done():
-		case <-ticker.C:
-		case m := <-ch:
-			mvs = append(mvs, m.HostMetricValue())
-			if len(mvs) < PostMetricBufferLength {
-				continue
+		case m, cont := <-ch:
+			if cont {
+				mvs = append(mvs, m.HostMetricValue())
+				if len(mvs) < PostMetricBufferLength {
+					continue
+				}
+			} else {
+				log.Println("[debug] shutting down postMetricWorker")
+				run = false
 			}
+		case <-ticker.C:
 		}
 		if len(mvs) == 0 {
 			continue
@@ -152,14 +162,10 @@ func postMetricWorker(ctx context.Context, client *mackerel.Client, ch chan Metr
 	}
 }
 
-func dumpMetricWorker(ctx context.Context, ch chan Metric) {
-	for {
-		select {
-		case <-ctx.Done():
-		case m := <-ch:
-			b, _ := json.Marshal(m.HostMetricValue())
-			log.Println("[debug]", string(b))
-		}
+func dumpMetricWorker(ch chan Metric) {
+	for m := range ch {
+		b, _ := json.Marshal(m.HostMetricValue())
+		log.Println("[debug]", string(b))
 	}
 }
 
