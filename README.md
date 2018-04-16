@@ -16,6 +16,16 @@ maprobe works as below.
 1. Post host metrics to Mackerel.
 1. Iterates these processes each 60 sec.
 
+## Install
+
+### Binary packages
+
+[GitHub releases](https://github.com/fujiwara/maprobe/releases)
+
+### Docker
+
+[DockerHub](https://hub.docker.com/r/fujiwara/maprobe/)
+
 ## Usage
 
 ```
