@@ -123,7 +123,7 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 		} else {
 			ms = append(ms, newMetric(p, "check.ok", 0))
 		}
-		log.Println("[debug]", ms.String())
+		log.Println("[trace]", ms.String())
 	}()
 
 	ctx, cancel := context.WithTimeout(ctx, p.Timeout)
@@ -143,6 +143,8 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: p.NoCheckCertificate},
 	}
 	client := &http.Client{Transport: tr}
+
+	log.Println("[debug] http request %s %s", req.Method, req.URL)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("[warn] HTTP request failed", err)

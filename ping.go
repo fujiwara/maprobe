@@ -93,7 +93,7 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	var successCount, failureCount int
 	pinger.MaxRTT = p.Timeout
 	pinger.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
-		log.Println("[debug] OnRecv RTT", rtt)
+		log.Println("[trace] OnRecv RTT", rtt)
 		successCount++
 		if min == 0 || max == 0 {
 			min = rtt

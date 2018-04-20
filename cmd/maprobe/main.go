@@ -32,6 +32,9 @@ var (
 	agent       = app.Command("agent", "Run agent")
 	agentConfig = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
 
+	once       = app.Command("once", "Run at once")
+	onceConfig = once.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
+
 	ping        = app.Command("ping", "Run ping probe")
 	pingAddress = ping.Arg("address", "Hostname or IP address").Required().String()
 	pingCount   = ping.Flag("count", "Iteration count").Short('c').Int()
@@ -106,7 +109,10 @@ func main() {
 	switch sub {
 	case "agent":
 		wg.Add(1)
-		err = maprobe.Run(ctx, &wg, *agentConfig)
+		err = maprobe.Run(ctx, &wg, *agentConfig, false)
+	case "once":
+		wg.Add(1)
+		err = maprobe.Run(ctx, &wg, *onceConfig, true)
 	case "ping":
 		err = runProbe(ctx, *pingHostID, &maprobe.PingProbeConfig{
 			Address: *pingAddress,

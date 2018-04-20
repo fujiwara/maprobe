@@ -29,7 +29,7 @@ func unlock() {
 	log.Printf("[trace] unlocked. concurrency: %d", len(sem))
 }
 
-func Run(ctx context.Context, wg *sync.WaitGroup, configPath string) error {
+func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) error {
 	defer wg.Done()
 	defer log.Println("[info] stopping maprobe")
 
@@ -59,6 +59,9 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string) error {
 			go runProbes(ctx, pd, client, ch, &wg2)
 		}
 		wg2.Wait()
+		if once {
+			return nil
+		}
 
 		log.Println("[debug] waiting for a next tick")
 		select {
