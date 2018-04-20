@@ -3,7 +3,9 @@ package maprobe
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -54,14 +56,32 @@ func (m Metric) String() string {
 	return fmt.Sprintf("%s\t%f\t%d", m.Name, m.Value, m.Timestamp.Unix())
 }
 
+var (
+	expandMutex sync.Mutex
+	expandCache = make(map[string]*template.Template)
+)
+
 func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
+	var err error
+
 	if strings.Index(src, "{{") == -1 {
 		// no need to expand
 		return src, nil
 	}
-	tmpl, err := template.New(src).Parse(src)
-	if err != nil {
-		return "", err
+
+	expandMutex.Lock()
+	defer expandMutex.Unlock()
+
+	tmpl := expandCache[src]
+	if tmpl == nil {
+		log.Println("[trace] expand cache MISS", src)
+		tmpl, err = template.New(src).Parse(src)
+		if err != nil {
+			return "", err
+		}
+		expandCache[src] = tmpl
+	} else {
+		log.Println("[trace] expand cache HIT", src)
 	}
 	var b strings.Builder
 	b.Grow(len(src))

@@ -53,13 +53,13 @@ func TestTCP(t *testing.T) {
 	host, port, _ := net.SplitHostPort(TCPServerAddress.String())
 
 	pc := &maprobe.TCPProbeConfig{
-		Host:          host,
+		Host:          "{{.Host.Name}}",
 		Port:          port,
 		Send:          "hello\n",
 		ExpectPattern: "^hello",
 	}
 
-	probe, err := pc.GenerateProbe(&mackerel.Host{ID: "test"})
+	probe, err := pc.GenerateProbe(&mackerel.Host{ID: "test", Name: host})
 	if err != nil {
 		t.Error(err)
 	}
@@ -78,6 +78,42 @@ func TestTCP(t *testing.T) {
 			}
 		case "tcp.check.ok":
 			if m.Value != 1 {
+				t.Error("check failed")
+			}
+		}
+	}
+	t.Log(ms.String())
+}
+
+func TestTCPFail(t *testing.T) {
+	host, port, _ := net.SplitHostPort(TCPServerAddress.String())
+
+	pc := &maprobe.TCPProbeConfig{
+		Host:          "{{.Host.Name}}",
+		Port:          port,
+		Send:          "hello\n",
+		ExpectPattern: "^world",
+	}
+
+	probe, err := pc.GenerateProbe(&mackerel.Host{ID: "test", Name: host})
+	if err != nil {
+		t.Error(err)
+	}
+	ms, err := probe.Run(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	if len(ms) != 2 {
+		t.Error("unexpected metrics num")
+	}
+	for _, m := range ms {
+		switch m.Name {
+		case "tcp.elapsed.seconds":
+			if m.Value < 0.1 {
+				t.Error("elapsed time too short")
+			}
+		case "tcp.check.ok":
+			if m.Value != 0 {
 				t.Error("check failed")
 			}
 		}
