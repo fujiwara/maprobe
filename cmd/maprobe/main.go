@@ -32,7 +32,7 @@ var (
 	agent       = app.Command("agent", "Run agent")
 	agentConfig = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
 
-	once       = app.Command("once", "Run at once")
+	once       = app.Command("once", "Run once")
 	onceConfig = once.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
 
 	ping        = app.Command("ping", "Run ping probe")

@@ -1,6 +1,16 @@
-proves:
+# probe_only: true
+probes:
   - service: Home
     role: server
+    http:
+      url: "https://{{ .Host.Name }}"
+      headers:
+      no_check_certificate: true
+    command:
+      command: "mackerel-plugin-redis -host 10.8.0.1"
+
+  - service: Home
     ping:
-      address: "{{ .IPAddresses.eth0 }}"
+      address: '{{ or .Host.IPAddresses.en0 .Host.IPAddresses.eth0 }}'
       count: 3
+      timeout: "500ms"

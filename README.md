@@ -6,7 +6,7 @@ Mackerel external probe agent.
 
 maprobe is an external probe agent with [Mackerel](https://mackerel.io).
 
-maprobe works as below.
+maprobe agent works as below.
 
 1. Fetch hosts information from Mackerel API.
    - Filtered service and role.
@@ -42,6 +42,9 @@ Commands:
   agent [<flags>]
     Run agent
 
+  once [<flags>]
+    Run once
+
   ping [<flags>] <address>
     Run ping probe
 
@@ -52,7 +55,7 @@ Commands:
     Run HTTP probe
 ```
 
-### agent
+### agent / once
 
 `MACKEREL_APIKEY` environment variable is required.
 
@@ -72,6 +75,8 @@ Flags:
 maprobe checks the config is modified, and reload in run time.
 
 Defaults of `--config` and `--log-level` will be overrided from envrionment variables (`CONFIG` and `LOG_LEVEL`).
+
+`agent` runs maprobe forever, `once` runs maprobe once.
 
 ### Example Configuration
 
