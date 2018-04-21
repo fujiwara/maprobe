@@ -144,7 +144,7 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	}
 	client := &http.Client{Transport: tr}
 
-	log.Println("[debug] http request %s %s", req.Method, req.URL)
+	log.Printf("[debug] http request %s %s", req.Method, req.URL)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("[warn] HTTP request failed", err)
