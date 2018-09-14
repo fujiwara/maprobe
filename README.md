@@ -197,6 +197,12 @@ Command probe can run any scripts against for Mackerel hosts.
 For example,
 
 ```yaml
+service: production
+role: server
+statues:
+  - working
+  - standby
+  - poweroff
 command:
   command: 'cleanup.sh {{.Host.ID}} {{index .Host.Meta.Cloud.MetaData "instance-id"}}'
 ```

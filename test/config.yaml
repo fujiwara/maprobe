@@ -2,6 +2,9 @@ apikey: DUMMY
 probes:
   - service: prod
     role: EC2
+    statuses:
+      - working
+      - standby
     ping:
       address: "{{ .ipAddresses.eth0 }}"
       count: 3
@@ -10,7 +13,7 @@ probes:
   - service: prod
     role: NLB
     tcp:
-      address: "{{ .customIdentifier }}"
+      host: "{{ .customIdentifier }}"
       port: 11211
       send: "VERSION\r\n"
       expect_pattern: "^VERSION "
@@ -26,6 +29,6 @@ probes:
         "Cache-Control": "no-cache"
         "Content-Type": "application/json"
       body: '{"hello":"world"}'
-      expect: "ok"
-      skip_verify_certificates: true
+      expect_pattern: "ok"
+      no_check_certificate: true
 
