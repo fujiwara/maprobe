@@ -86,10 +86,16 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 
 func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client, ch chan Metric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	log.Printf("[debug] finding hosts service:%s roles:%s", pd.Service, pd.Roles)
+	log.Printf(
+		"[debug] finding hosts service:%s roles:%s statuses:%v",
+		pd.Service,
+		pd.Roles,
+		pd.Statuses,
+	)
 	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
-		Service: pd.Service,
-		Roles:   pd.Roles,
+		Service:  pd.Service,
+		Roles:    pd.Roles,
+		Statuses: pd.Statuses,
 	})
 	if err != nil {
 		log.Println("[error]", err)

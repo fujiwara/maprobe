@@ -27,9 +27,11 @@ type Config struct {
 }
 
 type ProbeDefinition struct {
-	Service string              `yaml:"service"`
-	Role    string              `yaml:"role"`
-	Roles   []string            `yaml:"roles"`
+	Service  string   `yaml:"service"`
+	Role     string   `yaml:"role"`
+	Roles    []string `yaml:"roles"`
+	Statuses []string `yaml:"statuses"`
+
 	Ping    *PingProbeConfig    `yaml:"ping"`
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
 	HTTP    *HTTPProbeConfig    `yaml:"http"`

@@ -23,7 +23,7 @@ var (
 type HTTPProbeConfig struct {
 	URL                string            `yaml:"url"`
 	Method             string            `yaml:"method"`
-	Headers            map[string]string `yaml:"header"`
+	Headers            map[string]string `yaml:"headers"`
 	Body               string            `yaml:"body"`
 	ExpectPattern      string            `yaml:"expect_pattern"`
 	Timeout            time.Duration     `yaml:"timeout"`
