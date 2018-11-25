@@ -12,7 +12,8 @@ import (
 
 var commandProbesConfig = []*maprobe.CommandProbeConfig{
 	&maprobe.CommandProbeConfig{
-		Command: `sh -c 'echo "test.{{ .Host.ID }}.ok\t1\t1523261168"'`,
+		Command:   `./test/command-plugin {{ .Host.ID }}`,
+		GraphDefs: true,
 	},
 }
 
@@ -29,7 +30,7 @@ var commandProbesExpect = []maprobe.Metrics{
 
 func TestCommand(t *testing.T) {
 	for i, pc := range commandProbesConfig {
-		probe, _ := pc.GenerateProbe(&mackerel.Host{ID: "test"})
+		probe, _ := pc.GenerateProbe(&mackerel.Host{ID: "test"}, nil)
 		ms, err := probe.Run(context.Background())
 		if err != nil {
 			t.Error(err)

@@ -120,7 +120,7 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 			lock()
 			defer unlock()
 			defer wg2.Done()
-			for _, probe := range pd.GenerateProbes(host) {
+			for _, probe := range pd.GenerateProbes(host, client) {
 				log.Printf("[debug] probing host id:%s name:%s probe:%s", host.ID, host.Name, probe)
 				metrics, err := probe.Run(ctx)
 				if err != nil {

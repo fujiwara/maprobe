@@ -7,7 +7,13 @@ probes:
       headers:
       no_check_certificate: true
     command:
-      command: "mackerel-plugin-redis -host 10.8.0.1"
+      command: "mackerel-plugin-memcached -host 10.8.0.1"
+      graph_defs: on
+  - service: Home
+    role: server
+    command:
+      command: "mackerel-plugin-nginx -host 10.8.0.1 -port 80"
+      graph_defs: on
 
   - service: Home
     ping:

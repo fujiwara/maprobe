@@ -42,7 +42,7 @@ type Metric struct {
 
 func (m Metric) HostMetricValue() *mackerel.HostMetricValue {
 	mv := &mackerel.MetricValue{
-		Name:  m.Name,
+		Name:  "custom." + m.Name,
 		Time:  m.Timestamp.Unix(),
 		Value: m.Value,
 	}
