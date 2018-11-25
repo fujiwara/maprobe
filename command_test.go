@@ -15,9 +15,20 @@ var commandProbesConfig = []*maprobe.CommandProbeConfig{
 		Command:   `./test/command-plugin {{ .Host.ID }}`,
 		GraphDefs: true,
 	},
+	&maprobe.CommandProbeConfig{
+		Command: `./test/command-plugin {{ .Host.ID }}`,
+	},
 }
 
 var commandProbesExpect = []maprobe.Metrics{
+	maprobe.Metrics{
+		maprobe.Metric{
+			HostID:    "test",
+			Name:      "custom.test.test.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
+		},
+	},
 	maprobe.Metrics{
 		maprobe.Metric{
 			HostID:    "test",
