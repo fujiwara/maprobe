@@ -12,11 +12,23 @@ import (
 
 var commandProbesConfig = []*maprobe.CommandProbeConfig{
 	&maprobe.CommandProbeConfig{
-		Command: `sh -c 'echo "test.{{ .Host.ID }}.ok\t1\t1523261168"'`,
+		Command:   `./test/command-plugin {{ .Host.ID }}`,
+		GraphDefs: true,
+	},
+	&maprobe.CommandProbeConfig{
+		Command: `./test/command-plugin {{ .Host.ID }}`,
 	},
 }
 
 var commandProbesExpect = []maprobe.Metrics{
+	maprobe.Metrics{
+		maprobe.Metric{
+			HostID:    "test",
+			Name:      "custom.test.test.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
+		},
+	},
 	maprobe.Metrics{
 		maprobe.Metric{
 			HostID:    "test",
@@ -29,7 +41,7 @@ var commandProbesExpect = []maprobe.Metrics{
 
 func TestCommand(t *testing.T) {
 	for i, pc := range commandProbesConfig {
-		probe, _ := pc.GenerateProbe(&mackerel.Host{ID: "test"})
+		probe, _ := pc.GenerateProbe(&mackerel.Host{ID: "test"}, nil)
 		ms, err := probe.Run(context.Background())
 		if err != nil {
 			t.Error(err)

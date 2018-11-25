@@ -38,10 +38,10 @@ type ProbeDefinition struct {
 	Command *CommandProbeConfig `yaml:"command"`
 }
 
-func (pc *ProbeDefinition) GenerateProbes(host *mackerel.Host) []Probe {
+func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.Client) []Probe {
 	var probes []Probe
 
-	if pingConfig := pc.Ping; pingConfig != nil {
+	if pingConfig := pd.Ping; pingConfig != nil {
 		p, err := pingConfig.GenerateProbe(host)
 		if err != nil {
 			log.Printf("[error] cannot generate ping probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
@@ -50,7 +50,7 @@ func (pc *ProbeDefinition) GenerateProbes(host *mackerel.Host) []Probe {
 		}
 	}
 
-	if tcpConfig := pc.TCP; tcpConfig != nil {
+	if tcpConfig := pd.TCP; tcpConfig != nil {
 		p, err := tcpConfig.GenerateProbe(host)
 		if err != nil {
 			log.Printf("[error] cannot generate tcp probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
@@ -59,7 +59,7 @@ func (pc *ProbeDefinition) GenerateProbes(host *mackerel.Host) []Probe {
 		}
 	}
 
-	if httpConfig := pc.HTTP; httpConfig != nil {
+	if httpConfig := pd.HTTP; httpConfig != nil {
 		p, err := httpConfig.GenerateProbe(host)
 		if err != nil {
 			log.Printf("[error] cannot generate http probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
@@ -68,8 +68,8 @@ func (pc *ProbeDefinition) GenerateProbes(host *mackerel.Host) []Probe {
 		}
 	}
 
-	if commandConfig := pc.Command; commandConfig != nil {
-		p, err := commandConfig.GenerateProbe(host)
+	if commandConfig := pd.Command; commandConfig != nil {
+		p, err := commandConfig.GenerateProbe(host, client)
 		if err != nil {
 			log.Printf("[error] cannot generate command probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {

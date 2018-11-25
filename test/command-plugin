@@ -1,0 +1,42 @@
+#!/bin/sh
+
+if [ "${MACKEREL_AGENT_PLUGIN_META}" = "1" ]
+then
+    echo "# mackerel-agent-plugin"
+    cat <<EOF
+{
+  "graphs": {
+    "test.foo": {
+      "label": "Test Foo",
+      "unit": "bytes",
+      "metrics": [
+        {
+          "name": "foo",
+          "label": "Foo",
+          "diff": true,
+          "type": "uint64",
+          "stacked": false,
+          "scale": 0
+        }
+      ]
+    },
+    "test.bar": {
+      "label": "Test Bar",
+      "unit": "bytes",
+      "metrics": [
+        {
+          "name": "bar",
+          "label": "Bar",
+          "diff": true,
+          "type": "uint64",
+          "stacked": false,
+          "scale": 0
+        }
+      ]
+    }
+  }
+}
+EOF
+else
+    echo "test.$1.ok\t1\t1523261168"
+fi

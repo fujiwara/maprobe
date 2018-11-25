@@ -186,9 +186,16 @@ Command probe executes command which outputs like Mackerel metric plugin.
 command:
   command: "/path/to/metric-command" # Path to execute command
   timeout: "5s"                      # Seconds of command timeout (default 15)
+  graph_defs: true                   # Post graph definitions to Mackerel (default false)
 ```
 
 Command probe handles command's output as host metric.
+
+When `graph_defs` is true, maprobe runs a command with `MACKEREL_AGENT_PLUGIN_META=1` environment variables and post graph definitions to Mackerel at first time.
+
+If the command does not return a valid graph definitions output, that is ignored.
+
+See also [ホストのカスタムメトリックを投稿する - Mackerel ヘルプ](https://mackerel.io/ja/docs/entry/advanced/custom-metrics#graph-schema).
 
 #### Example of automated cleanup for terminated EC2 instances.
 

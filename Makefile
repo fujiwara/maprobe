@@ -19,7 +19,7 @@ setup_ci:
 	go get \
 		github.com/laher/goxc \
 		github.com/tcnksm/ghr \
-		github.com/golang/lint/golint \
+		golang.org/x/lint/golint \
 		github.com/golang/dep/cmd/dep
 	go get -d -t ./...
 
