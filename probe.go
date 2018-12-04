@@ -13,7 +13,7 @@ import (
 )
 
 type Probe interface {
-	Run(ctx context.Context) (Metrics, error)
+	Run(ctx context.Context) (HostMetrics, error)
 	HostID() string
 	MetricName(string) string
 }
@@ -22,9 +22,9 @@ type ProbeConfig interface {
 	GenerateProbe(host *mackerel.Host) (Probe, error)
 }
 
-type Metrics []Metric
+type HostMetrics []HostMetric
 
-func (ms Metrics) String() string {
+func (ms HostMetrics) String() string {
 	var b strings.Builder
 	for _, m := range ms {
 		b.WriteString(m.String())
@@ -33,14 +33,14 @@ func (ms Metrics) String() string {
 	return b.String()
 }
 
-type Metric struct {
+type HostMetric struct {
 	HostID    string
 	Name      string
 	Value     float64
 	Timestamp time.Time
 }
 
-func (m Metric) HostMetricValue() *mackerel.HostMetricValue {
+func (m HostMetric) HostMetricValue() *mackerel.HostMetricValue {
 	mv := &mackerel.MetricValue{
 		Name:  "custom." + m.Name,
 		Time:  m.Timestamp.Unix(),
@@ -52,7 +52,7 @@ func (m Metric) HostMetricValue() *mackerel.HostMetricValue {
 	}
 }
 
-func (m Metric) String() string {
+func (m HostMetric) String() string {
 	return fmt.Sprintf("%s\t%f\t%d", m.Name, m.Value, m.Timestamp.Unix())
 }
 
@@ -89,8 +89,8 @@ func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
 	return b.String(), err
 }
 
-func newMetric(p Probe, name string, value float64) Metric {
-	return Metric{
+func newMetric(p Probe, name string, value float64) HostMetric {
+	return HostMetric{
 		HostID:    p.HostID(),
 		Name:      p.MetricName(name),
 		Value:     value,

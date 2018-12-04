@@ -85,7 +85,7 @@ func (p *CommandProbe) String() string {
 	return string(b)
 }
 
-func (p *CommandProbe) Run(ctx context.Context) (ms Metrics, err error) {
+func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	ctx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
@@ -217,13 +217,13 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 	return &out, nil
 }
 
-func parseMetricLine(b string) (Metric, error) {
+func parseMetricLine(b string) (HostMetric, error) {
 	cols := strings.SplitN(b, "\t", 3)
 	if len(cols) < 3 {
-		return Metric{}, errors.New("invalid metric format. insufficient columns")
+		return HostMetric{}, errors.New("invalid metric format. insufficient columns")
 	}
 	name, value, timestamp := cols[0], cols[1], cols[2]
-	m := Metric{
+	m := HostMetric{
 		Name: name,
 	}
 

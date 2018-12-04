@@ -75,8 +75,8 @@ func (p *PingProbe) String() string {
 	return string(b)
 }
 
-func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
-	var ms Metrics
+func (p *PingProbe) Run(ctx context.Context) (HostMetrics, error) {
+	var ms HostMetrics
 
 	log.Printf("[debug] run ping to %s", p.Address)
 	pinger := fping.NewPinger()

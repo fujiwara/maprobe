@@ -113,7 +113,7 @@ func (p *TCPProbe) String() string {
 	return string(b)
 }
 
-func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
+func (p *TCPProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {

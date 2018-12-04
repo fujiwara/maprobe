@@ -41,7 +41,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	log.Println("[debug]", conf.String())
 	client := mackerel.NewClient(conf.APIKey)
 
-	ch := make(chan Metric, PostMetricBufferLength*10)
+	ch := make(chan HostMetric, PostMetricBufferLength*10)
 	defer close(ch)
 
 	if conf.ProbeOnly {
@@ -84,7 +84,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	return nil
 }
 
-func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client, ch chan Metric, wg *sync.WaitGroup) {
+func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client, ch chan HostMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Printf(
 		"[debug] finding hosts service:%s roles:%s statuses:%v",
@@ -135,7 +135,7 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 	wg2.Wait()
 }
 
-func postMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan Metric) {
+func postMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan HostMetric) {
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
 	mvs := make([]*mackerel.HostMetricValue, 0, PostMetricBufferLength)
@@ -171,7 +171,7 @@ func postMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan Metri
 	}
 }
 
-func dumpMetricWorker(ch chan Metric) {
+func dumpMetricWorker(ch chan HostMetric) {
 	for m := range ch {
 		b, _ := json.Marshal(m.HostMetricValue())
 		log.Println("[debug]", string(b))
