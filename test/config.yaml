@@ -32,3 +32,17 @@ probes:
       expect_pattern: "ok"
       no_check_certificate: true
 
+aggregates:
+  - service: prod
+    role: web
+    metrics:
+      - name: custom.nginx.requests.requests
+        outputs:
+          - func: sum
+            name: custom.nginx.requests.sum_requests
+          - func: avg
+            name: custom.nginx.requests.avg_requests
+      - name: custom.nginx.connections.connections
+        outputs:
+          - func: avg
+            name: custom.nginx.connections.avg_connections
