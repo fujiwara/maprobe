@@ -28,6 +28,8 @@ type Config struct {
 
 	Aggregates            []*AggregateDefinition `yaml:"aggregates"`
 	PostAggregatedMetrics bool                   `yaml:"post_aggregated_metrics"`
+
+	ProbeOnly *bool `yaml:"probe_only"` // deprecated
 }
 
 type ProbeDefinition struct {
@@ -119,6 +121,10 @@ func (c *Config) initialize() {
 func (c *Config) validate() error {
 	if c.APIKey == "" {
 		return errors.New("no API Key")
+	}
+	if o := c.ProbeOnly; o != nil {
+		log.Println("[warn] configuration probe_only is not deprecated. use post_probed_metrics")
+		c.PostProbedMetrics = !*o
 	}
 	return nil
 }
