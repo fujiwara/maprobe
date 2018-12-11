@@ -21,9 +21,13 @@ import (
 type Config struct {
 	location string
 
-	APIKey    string             `yaml:"apikey"`
-	Probes    []*ProbeDefinition `yaml:"probes"`
-	ProbeOnly bool               `yaml:"probe_only"`
+	APIKey string `yaml:"apikey"`
+
+	Probes            []*ProbeDefinition `yaml:"probes"`
+	PostProbedMetrics bool               `yaml:"post_probed_metrics"`
+
+	Aggregates            []*AggregateDefinition `yaml:"aggregates"`
+	PostAggregatedMetrics bool                   `yaml:"post_aggregated_metrics"`
 }
 
 type ProbeDefinition struct {
@@ -82,8 +86,10 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 
 func LoadConfig(location string) (*Config, error) {
 	c := &Config{
-		location: location,
-		APIKey:   os.Getenv("MACKEREL_APIKEY"),
+		location:              location,
+		APIKey:                os.Getenv("MACKEREL_APIKEY"),
+		PostProbedMetrics:     true,
+		PostAggregatedMetrics: true,
 	}
 	b, err := c.fetch()
 	if err != nil {
@@ -97,9 +103,15 @@ func LoadConfig(location string) (*Config, error) {
 }
 
 func (c *Config) initialize() {
+	// role -> roles
 	for _, pd := range c.Probes {
 		if pd.Role != "" {
 			pd.Roles = append(pd.Roles, pd.Role)
+		}
+	}
+	for _, ad := range c.Aggregates {
+		if ad.Role != "" {
+			ad.Roles = append(ad.Roles, ad.Role)
 		}
 	}
 }
@@ -157,4 +169,22 @@ func fetchS3(u *url.URL) ([]byte, error) {
 		return nil, fmt.Errorf("failed to fetch from S3, %s", err)
 	}
 	return buf.Bytes(), nil
+}
+
+type AggregateDefinition struct {
+	Service  string         `yaml:"service"`
+	Role     string         `yaml:"role"`
+	Roles    []string       `yaml:"roles"`
+	Statuses []string       `yaml:"statuses"`
+	Metrics  []MetricConfig `yaml:"metrics"`
+}
+
+type MetricConfig struct {
+	Name    string         `yaml:"name"`
+	Outputs []OutputConfig `yaml:"outputs"`
+}
+
+type OutputConfig struct {
+	Func string `yaml:"func"`
+	Name string `yaml:"name"`
 }
