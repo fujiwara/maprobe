@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -126,6 +127,31 @@ func (c *Config) validate() error {
 		log.Println("[warn] configuration probe_only is not deprecated. use post_probed_metrics")
 		c.PostProbedMetrics = !*o
 	}
+
+	for _, ag := range c.Aggregates {
+		for _, mc := range ag.Metrics {
+			for _, oc := range mc.Outputs {
+				switch strings.ToLower(oc.Func) {
+				case "sum":
+					oc.calc = sum
+				case "min":
+					oc.calc = min
+				case "max":
+					oc.calc = max
+				case "avg", "average":
+					oc.calc = avg
+				case "count":
+					oc.calc = count
+				default:
+					log.Printf(
+						"[warn] func %s is not available for outputs %s",
+						oc.Func, mc.Name,
+					)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -178,19 +204,21 @@ func fetchS3(u *url.URL) ([]byte, error) {
 }
 
 type AggregateDefinition struct {
-	Service  string         `yaml:"service"`
-	Role     string         `yaml:"role"`
-	Roles    []string       `yaml:"roles"`
-	Statuses []string       `yaml:"statuses"`
-	Metrics  []MetricConfig `yaml:"metrics"`
+	Service  string          `yaml:"service"`
+	Role     string          `yaml:"role"`
+	Roles    []string        `yaml:"roles"`
+	Statuses []string        `yaml:"statuses"`
+	Metrics  []*MetricConfig `yaml:"metrics"`
 }
 
 type MetricConfig struct {
-	Name    string         `yaml:"name"`
-	Outputs []OutputConfig `yaml:"outputs"`
+	Name    string          `yaml:"name"`
+	Outputs []*OutputConfig `yaml:"outputs"`
 }
 
 type OutputConfig struct {
 	Func string `yaml:"func"`
 	Name string `yaml:"name"`
+
+	calc func([]float64) float64
 }
