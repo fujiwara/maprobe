@@ -243,35 +243,6 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 	}
 }
 
-func sum(values []float64) (value float64) {
-	for _, v := range values {
-		value = value + v
-	}
-	return
-}
-
-func min(values []float64) (value float64) {
-	for _, v := range values {
-		value = math.Min(v, value)
-	}
-	return
-}
-
-func max(values []float64) (value float64) {
-	for _, v := range values {
-		value = math.Max(v, value)
-	}
-	return
-}
-
-func count(values []float64) (value float64) {
-	return float64(len(values))
-}
-
-func avg(values []float64) (value float64) {
-	return sum(values) / count(values)
-}
-
 func postHostMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan HostMetric) {
 	log.Println("[info] starting postHostMetricWorker")
 	defer wg.Done()
@@ -320,7 +291,10 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch cha
 		case m, cont := <-ch:
 			if cont {
 				if math.IsNaN(m.Value) {
-					log.Printf("[warn] %s:%s value NaN is not supported by Mackerel")
+					log.Printf(
+						"[warn] %s:%s value NaN is not supported by Mackerel",
+						m.Service, m.Name,
+					)
 					continue
 				} else {
 					mvsMap[m.Service] = append(mvsMap[m.Service], m.MetricValue())
