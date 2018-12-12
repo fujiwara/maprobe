@@ -67,6 +67,20 @@
   version = "v1.35.0"
 
 [[projects]]
+  digest = "1:f9f45f75f332e03fc7e9fe9188ea4e1ce4d14779ef34fa1b023da67518e36327"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/cmpopts",
+    "cmp/internal/diff",
+    "cmp/internal/function",
+    "cmp/internal/value",
+  ]
+  pruneopts = ""
+  revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
+  version = "v0.2.0"
+
+[[projects]]
   digest = "1:e47598ace6916c75faff9ff541acd804d70f1c432a54120f5460fd4cca1b284a"
   name = "github.com/google/gops"
   packages = [
@@ -172,6 +186,8 @@
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3manager",
+    "github.com/google/go-cmp/cmp",
+    "github.com/google/go-cmp/cmp/cmpopts",
     "github.com/google/gops/agent",
     "github.com/hashicorp/logutils",
     "github.com/mackerelio/mackerel-client-go",

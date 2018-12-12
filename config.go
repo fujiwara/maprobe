@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -21,9 +22,15 @@ import (
 type Config struct {
 	location string
 
-	APIKey    string             `yaml:"apikey"`
-	Probes    []*ProbeDefinition `yaml:"probes"`
-	ProbeOnly bool               `yaml:"probe_only"`
+	APIKey string `yaml:"apikey"`
+
+	Probes            []*ProbeDefinition `yaml:"probes"`
+	PostProbedMetrics bool               `yaml:"post_probed_metrics"`
+
+	Aggregates            []*AggregateDefinition `yaml:"aggregates"`
+	PostAggregatedMetrics bool                   `yaml:"post_aggregated_metrics"`
+
+	ProbeOnly *bool `yaml:"probe_only"` // deprecated
 }
 
 type ProbeDefinition struct {
@@ -82,8 +89,10 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 
 func LoadConfig(location string) (*Config, error) {
 	c := &Config{
-		location: location,
-		APIKey:   os.Getenv("MACKEREL_APIKEY"),
+		location:              location,
+		APIKey:                os.Getenv("MACKEREL_APIKEY"),
+		PostProbedMetrics:     true,
+		PostAggregatedMetrics: true,
 	}
 	b, err := c.fetch()
 	if err != nil {
@@ -97,9 +106,15 @@ func LoadConfig(location string) (*Config, error) {
 }
 
 func (c *Config) initialize() {
+	// role -> roles
 	for _, pd := range c.Probes {
 		if pd.Role != "" {
 			pd.Roles = append(pd.Roles, pd.Role)
+		}
+	}
+	for _, ad := range c.Aggregates {
+		if ad.Role != "" {
+			ad.Roles = append(ad.Roles, ad.Role)
 		}
 	}
 }
@@ -108,6 +123,35 @@ func (c *Config) validate() error {
 	if c.APIKey == "" {
 		return errors.New("no API Key")
 	}
+	if o := c.ProbeOnly; o != nil {
+		log.Println("[warn] configuration probe_only is not deprecated. use post_probed_metrics")
+		c.PostProbedMetrics = !*o
+	}
+
+	for _, ag := range c.Aggregates {
+		for _, mc := range ag.Metrics {
+			for _, oc := range mc.Outputs {
+				switch strings.ToLower(oc.Func) {
+				case "sum":
+					oc.calc = sum
+				case "min":
+					oc.calc = min
+				case "max":
+					oc.calc = max
+				case "avg", "average":
+					oc.calc = avg
+				case "count":
+					oc.calc = count
+				default:
+					log.Printf(
+						"[warn] func %s is not available for outputs %s",
+						oc.Func, mc.Name,
+					)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -157,4 +201,24 @@ func fetchS3(u *url.URL) ([]byte, error) {
 		return nil, fmt.Errorf("failed to fetch from S3, %s", err)
 	}
 	return buf.Bytes(), nil
+}
+
+type AggregateDefinition struct {
+	Service  string          `yaml:"service"`
+	Role     string          `yaml:"role"`
+	Roles    []string        `yaml:"roles"`
+	Statuses []string        `yaml:"statuses"`
+	Metrics  []*MetricConfig `yaml:"metrics"`
+}
+
+type MetricConfig struct {
+	Name    string          `yaml:"name"`
+	Outputs []*OutputConfig `yaml:"outputs"`
+}
+
+type OutputConfig struct {
+	Func string `yaml:"func"`
+	Name string `yaml:"name"`
+
+	calc func([]float64) float64
 }

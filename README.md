@@ -1,19 +1,29 @@
 # maprobe
 
-Mackerel external probe agent.
+Mackerel external probe / aggregate agent.
 
 ## Description
 
-maprobe is an external probe agent with [Mackerel](https://mackerel.io).
+maprobe is an external probe / aggregate agent with [Mackerel](https://mackerel.io).
 
 maprobe agent works as below.
+
+### for probes
 
 1. Fetch hosts information from Mackerel API.
    - Filtered service and role.
 1. For each hosts, execute probes (ping, tcp, http, command).
    - expand place holder in configuration `{{ .Host }}` as [Mackerel host struct](https://godoc.org/github.com/mackerelio/mackerel-client-go#Host).
    - `{{ .Host.IPAddress.eth0 }}` expand to e.g. `192.168.1.1`
-1. Post host metrics to Mackerel.
+1. Posts host metrics to Mackerel.
+1. Iterates these processes each 60 sec.
+
+### for aggregates
+
+1. Fetch hosts information from Mackerel API.
+   - Filtered service and role.
+1. For each hosts, fetch specified host metrics to calculates these metrics by functions.
+1. Post theses aggregated metrics as Mackerel service metrics.
 1. Iterates these processes each 60 sec.
 
 ## Install
@@ -78,10 +88,10 @@ Defaults of `--config` and `--log-level` will be overrided from envrionment vari
 
 `agent` runs maprobe forever, `once` runs maprobe once.
 
-### Example Configuration
+### Example Configuration for probes
 
 ```yaml
-probe_only: false   # when true, do not post metrics to Mackerel. only dump to debug log.
+post_probed_metrics: false   # when false, do not post host metrics to Mackerel. only dump to [info] log.
 probes:
   - service: production
     role: server
@@ -229,6 +239,45 @@ elif [[ $result =~ "InvalidInstanceID.NotFound" ]]; then
    mkr retire --force "${host_id}"
 fi
 ```
+
+### Example Configuration for aggregates
+
+```yaml
+post_aggregated_metrics: false   # when false, do not post service metrics to Mackerel. only dump to [info] log.
+aggregates:
+  - service: production
+    role: app-server
+    metrics:
+      - name: cpu.user.percentage
+        outputs:
+          - func: sum
+            name: cpu.user.sum_percentage
+          - func: avg
+            name: cpu.user.avg_percentage
+      - name: cpu.idle.percentage
+        outputs:
+          - func: sum
+            name: cpu.idle.sum_percentage
+          - func: avg
+            name: cpu.idle.avg_percentage
+```
+
+This configuration posts service metrics (for service "production") as below.
+
+- cpu.user.sum_percentage = sum(cpu.user.percentage) of production:app-server
+- cpu.user.avg_percentage = avg(cpu.user.percentage) of production:app-server
+- cpu.idle.sum_percentage = sum(cpu.idle.percentage) of production:app-server
+- cpu.idle.avg_percentage = avg(cpu.idle.percentage) of production:app-server
+
+#### functions for aggregates
+
+Following functions are available to aggregate host metrics.
+
+- sum
+- min
+- max
+- avg
+- count
 
 ## Author
 

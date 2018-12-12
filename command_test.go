@@ -20,17 +20,17 @@ var commandProbesConfig = []*maprobe.CommandProbeConfig{
 	},
 }
 
-var commandProbesExpect = []maprobe.Metrics{
-	maprobe.Metrics{
-		maprobe.Metric{
+var commandProbesExpect = []maprobe.HostMetrics{
+	maprobe.HostMetrics{
+		maprobe.HostMetric{
 			HostID:    "test",
 			Name:      "custom.test.test.ok",
 			Value:     1,
 			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
-	maprobe.Metrics{
-		maprobe.Metric{
+	maprobe.HostMetrics{
+		maprobe.HostMetric{
 			HostID:    "test",
 			Name:      "test.test.ok",
 			Value:     1,

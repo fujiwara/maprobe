@@ -1,16 +1,17 @@
 package maprobe_test
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/fujiwara/maprobe"
-	yaml "gopkg.in/yaml.v2"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 var testConfigExpected = &maprobe.Config{
-	APIKey: "DUMMY",
+	APIKey:            "DUMMY",
+	PostProbedMetrics: false,
 	Probes: []*maprobe.ProbeDefinition{
 		&maprobe.ProbeDefinition{
 			Service:  "prod",
@@ -53,6 +54,38 @@ var testConfigExpected = &maprobe.Config{
 			},
 		},
 	},
+	PostAggregatedMetrics: false,
+	Aggregates: []*maprobe.AggregateDefinition{
+		&maprobe.AggregateDefinition{
+			Service: "prod",
+			Role:    "web",
+			Roles:   []string{"web"},
+			Metrics: []*maprobe.MetricConfig{
+				&maprobe.MetricConfig{
+					Name: "custom.nginx.requests.requests",
+					Outputs: []*maprobe.OutputConfig{
+						&maprobe.OutputConfig{
+							Func: "sum",
+							Name: "custom.nginx.requests.sum_requests",
+						},
+						&maprobe.OutputConfig{
+							Func: "avg",
+							Name: "custom.nginx.requests.avg_requests",
+						},
+					},
+				},
+				&maprobe.MetricConfig{
+					Name: "custom.nginx.connections.connections",
+					Outputs: []*maprobe.OutputConfig{
+						&maprobe.OutputConfig{
+							Func: "avg",
+							Name: "custom.nginx.connections.avg_connections",
+						},
+					},
+				},
+			},
+		},
+	},
 }
 
 func TestConfig(t *testing.T) {
@@ -61,13 +94,16 @@ func TestConfig(t *testing.T) {
 		t.Error(err)
 	}
 	for i, p := range conf.Probes {
-		if !reflect.DeepEqual(p, testConfigExpected.Probes[i]) {
-			t.Errorf("unexpected probes %d", i)
-			got, _ := yaml.Marshal(p)
-			expect, _ := yaml.Marshal(testConfigExpected.Probes[i])
-			t.Log(string(got))
-			t.Log(string(expect))
+		if diff := cmp.Diff(p, testConfigExpected.Probes[i]); diff != "" {
+			t.Errorf("unexpected probes %d\n%s", i, diff)
 		}
 	}
-	t.Logf("%#v", conf)
+
+	for i, a := range conf.Aggregates {
+		b := testConfigExpected.Aggregates[i]
+		opt := cmpopts.IgnoreUnexported(maprobe.OutputConfig{})
+		if diff := cmp.Diff(a, b, opt); diff != "" {
+			t.Errorf("unexpected aggregates %d\n%s", i, diff)
+		}
+	}
 }
