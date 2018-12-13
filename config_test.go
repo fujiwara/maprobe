@@ -89,7 +89,7 @@ var testConfigExpected = &maprobe.Config{
 }
 
 func TestConfig(t *testing.T) {
-	conf, err := maprobe.LoadConfig("test/config.yaml")
+	conf, d1, err := maprobe.LoadConfig("test/config.yaml")
 	if err != nil {
 		t.Error(err)
 	}
@@ -105,5 +105,20 @@ func TestConfig(t *testing.T) {
 		if diff := cmp.Diff(a, b, opt); diff != "" {
 			t.Errorf("unexpected aggregates %d\n%s", i, diff)
 		}
+	}
+	_, d2, err := maprobe.LoadConfig("test/config.copy.yaml")
+	if err != nil {
+		t.Error(err)
+	}
+	if d1 != d2 {
+		t.Errorf("digest is not match %s != %s", d1, d2)
+	}
+
+	_, d3, err := maprobe.LoadConfig("test/config.mod.yaml")
+	if err != nil {
+		t.Error(err)
+	}
+	if d1 == d3 {
+		t.Errorf("digest must be changed %s != %s", d1, d3)
 	}
 }

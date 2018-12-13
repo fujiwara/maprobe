@@ -1,6 +1,7 @@
 package maprobe
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -87,7 +88,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	return probes
 }
 
-func LoadConfig(location string) (*Config, error) {
+func LoadConfig(location string) (*Config, string, error) {
 	c := &Config{
 		location:              location,
 		APIKey:                os.Getenv("MACKEREL_APIKEY"),
@@ -96,13 +97,13 @@ func LoadConfig(location string) (*Config, error) {
 	}
 	b, err := c.fetch()
 	if err != nil {
-		return nil, errors.Wrap(err, "load config failed")
+		return nil, "", errors.Wrap(err, "load config failed")
 	}
 	if err := yaml.Unmarshal(b, c); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	c.initialize()
-	return c, c.validate()
+	return c, fmt.Sprintf("%x", sha256.Sum256(b)), c.validate()
 }
 
 func (c *Config) initialize() {

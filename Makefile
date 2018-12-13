@@ -14,6 +14,9 @@ install: cmd/maprobe/maprobe
 
 setup:
 	dep ensure
+	cp test/config.yaml test/config.mod.yaml
+	cp test/config.yaml test/config.copy.yaml
+	echo "" >> test/config.mod.yaml
 
 setup_ci:
 	go get \
@@ -31,7 +34,7 @@ dist: setup
 	goxc
 
 clean:
-	rm -fr dist/*
+	rm -fr dist/* test/config.*.yaml
 
 release: dist
 	ghr -u fujiwara -r maprobe $(LATEST_TAG) dist/snapshot/

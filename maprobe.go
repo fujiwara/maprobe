@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"math"
-	"reflect"
 	"sync"
 	"time"
 
@@ -38,7 +37,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer log.Println("[info] stopping maprobe")
 
 	log.Println("[info] starting maprobe")
-	conf, err := LoadConfig(configPath)
+	conf, confDigest, err := LoadConfig(configPath)
 	if err != nil {
 		return err
 	}
@@ -92,11 +91,11 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		}
 
 		log.Println("[debug] checking a new config")
-		newConf, err := LoadConfig(configPath)
+		newConf, digest, err := LoadConfig(configPath)
 		if err != nil {
 			log.Println("[warn]", err)
 			log.Println("[warn] still using current config")
-		} else if !reflect.DeepEqual(conf, newConf) {
+		} else if confDigest != digest {
 			conf = newConf
 			log.Println("[info] config reloaded")
 			log.Println("[debug]", conf)
