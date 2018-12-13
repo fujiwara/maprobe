@@ -97,6 +97,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			log.Println("[warn] still using current config")
 		} else if confDigest != digest {
 			conf = newConf
+			confDigest = digest
 			log.Println("[info] config reloaded")
 			log.Println("[debug]", conf)
 		}
