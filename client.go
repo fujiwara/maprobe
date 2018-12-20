@@ -28,7 +28,7 @@ func fetchLatestMetricValues(client *mackerel.Client, hostIDs []string, metricNa
 				log.Printf("[trace] fetching host metric values: %s %s from %s to %s", hostID, metricName, from, to)
 				mvs, err := client.FetchHostMetricValues(hostID, metricName, from.Unix(), to.Unix())
 				if err != nil {
-					log.Printf("[warn] failed to fetch host metric values: %s %s from %s to %s", hostID, metricName, from, to)
+					log.Printf("[warn] failed to fetch host metric values: %s %s %s from %s to %s", err, hostID, metricName, from, to)
 					return
 				}
 				if len(mvs) == 0 {

@@ -1,0 +1,6 @@
+apikey: dummy
+probes:
+  - command:
+      command:
+  - command:
+      command: []

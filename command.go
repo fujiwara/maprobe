@@ -26,9 +26,37 @@ var DefaultCommandTimeout = 15 * time.Second
 var graphDefsPosted = sync.Map{}
 
 type CommandProbeConfig struct {
-	Command   string        `yaml:"command"`
-	Timeout   time.Duration `yaml:"timeout"`
-	GraphDefs bool          `yaml:"graph_defs"`
+	RawCommand interface{}   `yaml:"command"`
+	command    []string      `yaml:"-"`
+	Timeout    time.Duration `yaml:"timeout"`
+	GraphDefs  bool          `yaml:"graph_defs"`
+}
+
+func (pc *CommandProbeConfig) initialize() error {
+	switch c := pc.RawCommand.(type) {
+	case []interface{}:
+		if len(c) == 0 {
+			return errors.Errorf("command is empty array")
+		}
+		for _, v := range c {
+			switch s := v.(type) {
+			case string:
+				pc.command = append(pc.command, s)
+			default:
+				return errors.Errorf("command must be array of string")
+			}
+		}
+	case string:
+		if len(c) == 0 {
+			return errors.Errorf("command is empty string")
+		}
+		pc.command = []string{c}
+	case nil:
+		return errors.Errorf("command is empty")
+	default:
+		return errors.Errorf("invalid command: %#v", pc.RawCommand)
+	}
+	return nil
 }
 
 func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackerel.Client) (Probe, error) {
@@ -36,19 +64,22 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 		hostID:    host.ID,
 		Timeout:   pc.Timeout,
 		GraphDefs: pc.GraphDefs,
+		Command:   make([]string, len(pc.command)),
 	}
 	var err error
 
-	command, err := expandPlaceHolder(pc.Command, host)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid command")
+	for i, c := range pc.command {
+		p.Command[i], err = expandPlaceHolder(c, host)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid command")
+		}
 	}
-	p.Command, err = shellwords.Parse(command)
-	if err != nil {
-		return nil, errors.Wrap(err, "parse command failed")
-	}
-	if len(p.Command) == 0 {
-		return nil, errors.Wrap(err, "command required")
+
+	if len(p.Command) == 1 && strings.Contains(p.Command[0], " ") {
+		p.Command, err = shellwords.Parse(p.Command[0])
+		if err != nil {
+			return nil, errors.Wrap(err, "parse command failed")
+		}
 	}
 
 	if p.Timeout == 0 {
@@ -89,7 +120,15 @@ func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	ctx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
+	var cmd *exec.Cmd
+	switch len(p.Command) {
+	case 0:
+		return nil, errors.New("no command")
+	case 1:
+		cmd = exec.CommandContext(ctx, p.Command[0])
+	default:
+		cmd = exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
+	}
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
