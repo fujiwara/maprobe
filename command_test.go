@@ -10,16 +10,6 @@ import (
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
-var commandProbesConfig = []*maprobe.CommandProbeConfig{
-	&maprobe.CommandProbeConfig{
-		Command:   `./test/command-plugin {{ .Host.ID }}`,
-		GraphDefs: true,
-	},
-	&maprobe.CommandProbeConfig{
-		Command: `./test/command-plugin {{ .Host.ID }}`,
-	},
-}
-
 var commandProbesExpect = []maprobe.HostMetrics{
 	maprobe.HostMetrics{
 		maprobe.HostMetric{
@@ -40,8 +30,13 @@ var commandProbesExpect = []maprobe.HostMetrics{
 }
 
 func TestCommand(t *testing.T) {
-	for i, pc := range commandProbesConfig {
-		probe, _ := pc.GenerateProbe(&mackerel.Host{ID: "test"}, nil)
+	c, _, err := maprobe.LoadConfig("test/command.yaml")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for i, p := range c.Probes {
+		probe, err := p.Command.GenerateProbe(&mackerel.Host{ID: "test"}, nil)
 		ms, err := probe.Run(context.Background())
 		if err != nil {
 			t.Error(err)
@@ -52,5 +47,12 @@ func TestCommand(t *testing.T) {
 			}
 		}
 		t.Log(ms.String())
+	}
+}
+
+func TestCommandFail(t *testing.T) {
+	c, _, err := maprobe.LoadConfig("test/command_fail.yaml")
+	if err == nil {
+		t.Errorf("must be failed but got %#v", c)
 	}
 }

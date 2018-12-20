@@ -100,17 +100,24 @@ func LoadConfig(location string) (*Config, string, error) {
 		return nil, "", errors.Wrap(err, "load config failed")
 	}
 	if err := yaml.Unmarshal(b, c); err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrap(err, "yaml parse failed")
 	}
-	c.initialize()
+	if err := c.initialize(); err != nil {
+		return nil, "", errors.Wrap(err, "config initialize failed")
+	}
 	return c, fmt.Sprintf("%x", sha256.Sum256(b)), c.validate()
 }
 
-func (c *Config) initialize() {
+func (c *Config) initialize() error {
 	// role -> roles
 	for _, pd := range c.Probes {
 		if pd.Role != "" {
 			pd.Roles = append(pd.Roles, pd.Role)
+		}
+		if pd.Command != nil {
+			if err := pd.Command.initialize(); err != nil {
+				return err
+			}
 		}
 	}
 	for _, ad := range c.Aggregates {
@@ -118,6 +125,7 @@ func (c *Config) initialize() {
 			ad.Roles = append(ad.Roles, ad.Role)
 		}
 	}
+	return nil
 }
 
 func (c *Config) validate() error {

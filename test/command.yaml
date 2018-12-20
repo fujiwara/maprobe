@@ -1,0 +1,7 @@
+apikey: dummy
+probes:
+  - command:
+      command: ["./test/command-plugin", "{{ .Host.ID }}"]
+      graph_defs: true
+  - command:
+      command: "./test/command-plugin {{ .Host.ID }}"
