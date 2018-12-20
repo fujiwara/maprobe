@@ -117,7 +117,10 @@ probes:
       expect_pattern: "PONG"
       quit: "QUIT\n"
     command:
-      command: "mackerel-plugin-redis -host {{ .Host.IPAddress.eth0 }} -tempfile /tmp/redis-{{ .Host.ID }}"
+      command:
+        - "mackerel-plugin-redis"
+        - "-host={{ .Host.IPAddress.eth0 }}"
+        - "-tempfile=/tmp/redis-{{ .Host.ID }}"
 ```
 
 ### Ping
@@ -194,10 +197,20 @@ Command probe executes command which outputs like Mackerel metric plugin.
 
 ```yaml
 command:
-  command: "/path/to/metric-command" # Path to execute command
+  command: "/path/to/metric-command -option=foo" # execute command
   timeout: "5s"                      # Seconds of command timeout (default 15)
   graph_defs: true                   # Post graph definitions to Mackerel (default false)
 ```
+
+`command` accepts both a single string value and an array value. If an array value is passed, these are not processed by shell.
+
+```yaml
+command:
+  command:
+    - "/path/to/metric-command"
+    - "-option=foo"
+  timeout: "5s"                      # Seconds of command timeout (default 15)
+  graph_defs: true                   # Post graph definitions to Mackerel (default false)
 
 Command probe handles command's output as host metric.
 
