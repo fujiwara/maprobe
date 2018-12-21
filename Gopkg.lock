@@ -124,14 +124,6 @@
   revision = "458a40e9ccd85aa429f2894ea94f94d35bebd49f"
 
 [[projects]]
-  digest = "1:477cce5379198d3b8230b5c0961c61fcd1b337371cda81318e89a109245d83cb"
-  name = "github.com/mattn/go-shellwords"
-  packages = ["."]
-  pruneopts = ""
-  revision = "02e3cf038dcea8290e44424da473dd12be796a8a"
-  version = "v1.0.3"
-
-[[projects]]
   digest = "1:7365acd48986e205ccb8652cc746f09c8b7876030d53710ea6ef7d0bd0dcd7ca"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -191,7 +183,6 @@
     "github.com/google/gops/agent",
     "github.com/hashicorp/logutils",
     "github.com/mackerelio/mackerel-client-go",
-    "github.com/mattn/go-shellwords",
     "github.com/pkg/errors",
     "github.com/tatsushid/go-fastping",
     "gopkg.in/alecthomas/kingpin.v2",

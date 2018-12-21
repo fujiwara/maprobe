@@ -15,7 +15,6 @@ import (
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	shellwords "github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 )
 
@@ -76,10 +75,7 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 	}
 
 	if len(p.Command) == 1 && strings.Contains(p.Command[0], " ") {
-		p.Command, err = shellwords.Parse(p.Command[0])
-		if err != nil {
-			return nil, errors.Wrap(err, "parse command failed")
-		}
+		p.Command = []string{"sh", "-c", p.Command[0]}
 	}
 
 	if p.Timeout == 0 {

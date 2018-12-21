@@ -4,4 +4,4 @@ probes:
       command: ["./test/command-plugin", "{{ .Host.ID }}"]
       graph_defs: true
   - command:
-      command: "./test/command-plugin {{ .Host.ID }}"
+      command: "./test/command-plugin 'XXX{{ .Host.ID }}' | sed -e 's/XXX//'"
