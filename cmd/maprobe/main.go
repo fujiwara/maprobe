@@ -29,6 +29,8 @@ var (
 	app      = kingpin.New("maprobe", "")
 	logLevel = app.Flag("log-level", "log level").Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").String()
 
+	version = app.Command("version", "Show version")
+
 	agent       = app.Command("agent", "Run agent")
 	agentConfig = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
 
@@ -107,6 +109,9 @@ func main() {
 
 	var wg sync.WaitGroup
 	switch sub {
+	case "version":
+		fmt.Printf("maprobe version %s\n", maprobe.Version)
+		return
 	case "agent":
 		wg.Add(1)
 		err = maprobe.Run(ctx, &wg, *agentConfig, false)
