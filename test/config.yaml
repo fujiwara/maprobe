@@ -18,7 +18,7 @@ probes:
       expect_pattern: "^VERSION "
       timeout: 3s
 
-  - service: prod
+  - service: '{{ must_env "SERVICE" }}'
     role: ALB
     http:
       url: "{{ .metadata.probe.url }}?service={{ env `SERVICE` }}"
