@@ -1,12 +1,14 @@
-FROM alpine:3.7
-MAINTAINER fujiwara.shunichiro@gmail.com
+FROM alpine:3.9 AS build-env
 
 RUN apk --no-cache add ca-certificates unzip curl
 WORKDIR /tmp
-RUN curl -sL https://github.com/fujiwara/maprobe/releases/download/v0.2.4/maprobe_linux_amd64.zip > maprobe_linux_amd64.zip && \
-    unzip  maprobe_linux_amd64.zip && \
-    install maprobe_linux_amd64/maprobe /usr/local/bin && \
-    rm -fr maprobe_linux_amd64*
+RUN curl -sL https://github.com/fujiwara/maprobe/releases/download/v0.3.0/maprobe_linux_amd64.zip > maprobe_linux_amd64.zip
+RUN unzip maprobe_linux_amd64.zip
 
+FROM alpine:3.9
+LABEL maintainer "fujiwara <fujiwara.shunichiro@gmail.com>"
+
+RUN apk --no-cache add ca-certificates
+COPY --from=build-env /tmp/maprobe_linux_amd64/maprobe /usr/local/bin
 WORKDIR /
 ENTRYPOINT ["/usr/local/bin/maprobe"]
