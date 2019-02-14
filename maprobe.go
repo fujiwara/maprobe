@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"os"
 	"sync"
 	"time"
 
@@ -42,7 +43,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		return err
 	}
 	log.Println("[debug]", conf.String())
-	client := mackerel.NewClient(conf.APIKey)
+	client := mackerel.NewClient(os.Getenv("MACKEREL_APIKEY"))
 
 	hch := make(chan HostMetric, PostMetricBufferLength*10)
 	defer close(hch)

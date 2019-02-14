@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -22,8 +21,6 @@ import (
 
 type Config struct {
 	location string
-
-	APIKey string `yaml:"apikey"`
 
 	Probes            []*ProbeDefinition `yaml:"probes"`
 	PostProbedMetrics bool               `yaml:"post_probed_metrics"`
@@ -109,7 +106,6 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 func LoadConfig(location string) (*Config, string, error) {
 	c := &Config{
 		location:              location,
-		APIKey:                os.Getenv("MACKEREL_APIKEY"),
 		PostProbedMetrics:     true,
 		PostAggregatedMetrics: true,
 	}
@@ -147,9 +143,6 @@ func (c *Config) initialize() error {
 }
 
 func (c *Config) validate() error {
-	if c.APIKey == "" {
-		return errors.New("no API Key")
-	}
 	if o := c.ProbeOnly; o != nil {
 		log.Println("[warn] configuration probe_only is not deprecated. use post_probed_metrics")
 		c.PostProbedMetrics = !*o

@@ -1,4 +1,3 @@
-apikey: DUMMY
 probes:
   - service: '{{ must_env "SERVICE" }}'
     role: EC2

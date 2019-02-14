@@ -10,7 +10,6 @@ import (
 )
 
 var testConfigExpected = &Config{
-	APIKey:            "DUMMY",
 	PostProbedMetrics: false,
 	Probes: []*ProbeDefinition{
 		&ProbeDefinition{
