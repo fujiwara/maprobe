@@ -34,11 +34,29 @@ type Config struct {
 	ProbeOnly *bool `yaml:"probe_only"` // deprecated
 }
 
+type exString struct {
+	Value string
+}
+
+func (s exString) String() string {
+	return s.Value
+}
+
+func (s *exString) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+	err := unmarshal(&str)
+	if err == nil {
+		s.Value, err = expandPlaceHolder(str, nil)
+		return err
+	}
+	return err
+}
+
 type ProbeDefinition struct {
-	Service  string   `yaml:"service"`
-	Role     string   `yaml:"role"`
-	Roles    []string `yaml:"roles"`
-	Statuses []string `yaml:"statuses"`
+	Service  exString   `yaml:"service"`
+	Role     exString   `yaml:"role"`
+	Roles    []exString `yaml:"roles"`
+	Statuses []exString `yaml:"statuses"`
 
 	Ping    *PingProbeConfig    `yaml:"ping"`
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
@@ -111,7 +129,7 @@ func LoadConfig(location string) (*Config, string, error) {
 func (c *Config) initialize() error {
 	// role -> roles
 	for _, pd := range c.Probes {
-		if pd.Role != "" {
+		if pd.Role.String() != "" {
 			pd.Roles = append(pd.Roles, pd.Role)
 		}
 		if pd.Command != nil {

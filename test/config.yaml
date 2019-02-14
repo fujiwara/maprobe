@@ -1,6 +1,6 @@
 apikey: DUMMY
 probes:
-  - service: prod
+  - service: '{{ must_env "SERVICE" }}'
     role: EC2
     statuses:
       - working
@@ -11,7 +11,7 @@ probes:
       timeout: 5s
 
   - service: prod
-    role: NLB
+    role: '{{ must_env "SERVICE" }}-NLB'
     tcp:
       host: "{{ .customIdentifier }}"
       port: 11211
@@ -22,7 +22,7 @@ probes:
   - service: prod
     role: ALB
     http:
-      url: "{{ .metadata.probe.url }}"
+      url: "{{ .metadata.probe.url }}?service={{ env `SERVICE` }}"
       method: POST
       headers:
         "User-Agent": "maprobe/0.0.1"

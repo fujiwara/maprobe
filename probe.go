@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"text/template"
@@ -61,6 +62,26 @@ var (
 	expandCache = make(map[string]*template.Template)
 )
 
+var funcMap = template.FuncMap{
+	"env": func(keys ...string) string {
+		v := ""
+		for _, k := range keys {
+			v = os.Getenv(k)
+			if v != "" {
+				return v
+			}
+			v = k
+		}
+		return v
+	},
+	"must_env": func(key string) string {
+		if v, ok := os.LookupEnv(key); ok {
+			return v
+		}
+		panic(fmt.Sprintf("environment variable %s is not defined", key))
+	},
+}
+
 func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
 	var err error
 
@@ -75,7 +96,7 @@ func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
 	tmpl := expandCache[src]
 	if tmpl == nil {
 		log.Println("[trace] expand cache MISS", src)
-		tmpl, err = template.New(src).Parse(src)
+		tmpl, err = template.New(src).Funcs(funcMap).Parse(src)
 		if err != nil {
 			return "", err
 		}

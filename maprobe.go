@@ -113,10 +113,20 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 		pd.Roles,
 		pd.Statuses,
 	)
+	roles := make([]string, 0, len(pd.Roles))
+	for _, role := range pd.Roles {
+		roles = append(roles, role.String())
+	}
+
+	statuses := make([]string, 0, len(pd.Statuses))
+	for _, status := range pd.Statuses {
+		statuses = append(statuses, status.String())
+	}
+
 	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
-		Service:  pd.Service,
-		Roles:    pd.Roles,
-		Statuses: pd.Statuses,
+		Service:  pd.Service.String(),
+		Roles:    roles,
+		Statuses: statuses,
 	})
 	if err != nil {
 		log.Println("[error] probes find host failed", err)
