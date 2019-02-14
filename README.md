@@ -93,7 +93,7 @@ Defaults of `--config` and `--log-level` will be overrided from envrionment vari
 ```yaml
 post_probed_metrics: false   # when false, do not post host metrics to Mackerel. only dump to [info] log.
 probes:
-  - service: production
+  - service: '{{ env "SERVICE" }}'   # expand environment variable
     role: server
     ping:
       address: '{{ .Host.IPAddresses.eth0 }}'

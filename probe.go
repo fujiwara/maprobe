@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"text/template"
@@ -57,9 +58,28 @@ func (m HostMetric) String() string {
 }
 
 var (
-	expandMutex sync.Mutex
-	expandCache = make(map[string]*template.Template)
+	expandCache = sync.Map{}
 )
+
+var funcMap = template.FuncMap{
+	"env": func(keys ...string) string {
+		v := ""
+		for _, k := range keys {
+			v = os.Getenv(k)
+			if v != "" {
+				return v
+			}
+			v = k
+		}
+		return v
+	},
+	"must_env": func(key string) string {
+		if v, ok := os.LookupEnv(key); ok {
+			return v
+		}
+		panic(fmt.Sprintf("environment variable %s is not defined", key))
+	},
+}
 
 func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
 	var err error
@@ -69,19 +89,17 @@ func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
 		return src, nil
 	}
 
-	expandMutex.Lock()
-	defer expandMutex.Unlock()
-
-	tmpl := expandCache[src]
-	if tmpl == nil {
+	var tmpl *template.Template
+	if _tmpl, ok := expandCache.Load(src); ok {
+		log.Println("[trace] expand cache HIT", src)
+		tmpl = _tmpl.(*template.Template)
+	} else {
 		log.Println("[trace] expand cache MISS", src)
-		tmpl, err = template.New(src).Parse(src)
+		tmpl, err = template.New(src).Funcs(funcMap).Parse(src)
 		if err != nil {
 			return "", err
 		}
-		expandCache[src] = tmpl
-	} else {
-		log.Println("[trace] expand cache HIT", src)
+		expandCache.Store(src, tmpl)
 	}
 	var b strings.Builder
 	b.Grow(len(src))
