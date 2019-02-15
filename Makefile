@@ -7,7 +7,7 @@ test: setup
 
 cmd/maprobe/maprobe: *.go cmd/maprobe/main.go
 	cd cmd/maprobe && \
-	go build
+	go build -ldflags "-w -s"
 
 install: cmd/maprobe/maprobe
 	install cmd/maprobe/maprobe $(GOPATH)/bin
@@ -34,7 +34,7 @@ dist: setup
 	goxc
 
 clean:
-	rm -fr dist/* test/config.*.yaml
+	rm -fr dist/* test/config.*.yaml cmd/maprobe/maprobe
 
 release: dist
 	ghr -u fujiwara -r maprobe $(LATEST_TAG) dist/snapshot/
