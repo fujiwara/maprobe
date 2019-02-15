@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -e
+for p in $(echo "$INSTALL_MKR_PLUGINS" | tr "," " ")
+do
+    mkr plugin install "$p"
+done
+
+export PATH="/opt/mackerel-agent/plugins/bin:$PATH"
+exec /usr/bin/maprobe "$@"
