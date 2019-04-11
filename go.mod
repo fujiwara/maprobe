@@ -9,8 +9,10 @@ require (
 	github.com/google/go-cmp v0.2.0
 	github.com/google/gops v0.3.6
 	github.com/hashicorp/logutils v1.0.0
+	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 // indirect
 	github.com/mackerelio/mackerel-client-go v0.2.0
 	github.com/pkg/errors v0.8.1
+	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/tatsushid/go-fastping v0.0.0-20160109021039-d7bb493dee3e
 	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
