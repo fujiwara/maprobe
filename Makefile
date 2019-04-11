@@ -20,7 +20,7 @@ setup:
 
 setup_ci:
 	go get \
-		github.com/songmu/goxz \
+		github.com/Songmu/goxz \
 		github.com/tcnksm/ghr \
 		golang.org/x/lint/golint
 	go get -d -t ./...
