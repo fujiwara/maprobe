@@ -128,7 +128,7 @@ func (p *TCPProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 		log.Println("[debug]", ms.String())
 	}()
 
-	ctx, cancel := context.WithTimeout(ctx, p.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
 
 	addr := net.JoinHostPort(p.Host, p.Port)
