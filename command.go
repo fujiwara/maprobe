@@ -113,7 +113,7 @@ func (p *CommandProbe) String() string {
 }
 
 func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
-	ctx, cancel := context.WithTimeout(ctx, p.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
 
 	var cmd *exec.Cmd

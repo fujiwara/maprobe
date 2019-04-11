@@ -126,7 +126,7 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 		log.Println("[trace]", ms.String())
 	}()
 
-	ctx, cancel := context.WithTimeout(ctx, p.Timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
 
 	req, err := http.NewRequest(p.Method, p.URL, strings.NewReader(p.Body))
