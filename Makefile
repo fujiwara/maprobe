@@ -19,7 +19,7 @@ setup:
 	echo "" >> test/config.mod.yaml
 
 setup_ci:
-	go get \
+	GO111MODULE=off go get \
 		github.com/Songmu/goxz \
 		github.com/tcnksm/ghr \
 		golang.org/x/lint/golint
