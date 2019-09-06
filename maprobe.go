@@ -115,15 +115,8 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 		pd.Roles,
 		pd.Statuses,
 	)
-	roles := make([]string, 0, len(pd.Roles))
-	for _, role := range pd.Roles {
-		roles = append(roles, role.String())
-	}
-
-	statuses := make([]string, 0, len(pd.Statuses))
-	for _, status := range pd.Statuses {
-		statuses = append(statuses, status.String())
-	}
+	roles := exStrings(pd.Roles)
+	statuses := exStrings(pd.Statuses)
 
 	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
 		Service:  pd.Service.String(),
@@ -170,16 +163,21 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 
 func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackerel.Client, ch chan ServiceMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
+
+	service := ag.Service.String()
+	roles := exStrings(ag.Roles)
+	statuses := exStrings(ag.Statuses)
 	log.Printf(
 		"[debug] aggregates finding hosts service:%s roles:%s statuses:%v",
-		ag.Service,
-		ag.Roles,
-		ag.Statuses,
+		service,
+		roles,
+		statuses,
 	)
+
 	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
-		Service:  ag.Service,
-		Roles:    ag.Roles,
-		Statuses: ag.Statuses,
+		Service:  service,
+		Roles:    roles,
+		Statuses: statuses,
 	})
 	if err != nil {
 		log.Println("[error] aggregates find hosts failed", err)
@@ -195,7 +193,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 	}
 	metricNames := make([]string, 0, len(ag.Metrics))
 	for _, m := range ag.Metrics {
-		metricNames = append(metricNames, m.Name)
+		metricNames = append(metricNames, m.Name.String())
 	}
 
 	log.Printf("[debug] fetching latest metrics hosts:%v metrics:%v", hostIDs, metricNames)
@@ -210,7 +208,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 
 	now := time.Now()
 	for _, mc := range ag.Metrics {
-		name := mc.Name
+		name := mc.Name.String()
 		var timestamp float64
 		values := []float64{}
 		for hostID, metrics := range latest {
@@ -246,8 +244,8 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 				ag.Service, output.Name,
 			)
 			ch <- ServiceMetric{
-				Service:   ag.Service,
-				Name:      output.Name,
+				Service:   ag.Service.String(),
+				Name:      output.Name.String(),
 				Value:     value,
 				Timestamp: time.Unix(int64(timestamp), 0),
 			}

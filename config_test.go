@@ -56,29 +56,29 @@ var testConfigExpected = &Config{
 	PostAggregatedMetrics: false,
 	Aggregates: []*AggregateDefinition{
 		&AggregateDefinition{
-			Service: "prod",
-			Role:    "web",
-			Roles:   []string{"web"},
+			Service: exString{"prod"},
+			Role:    exString{"web"},
+			Roles:   []exString{exString{"web"}},
 			Metrics: []*MetricConfig{
 				&MetricConfig{
-					Name: "custom.nginx.requests.requests",
+					Name: exString{"custom.nginx.requests.requests"},
 					Outputs: []*OutputConfig{
 						&OutputConfig{
-							Func: "sum",
-							Name: "custom.nginx.requests.sum_requests",
+							Func: exString{"sum"},
+							Name: exString{"custom.nginx.requests.sum_requests"},
 						},
 						&OutputConfig{
-							Func: "avg",
-							Name: "custom.nginx.requests.avg_requests",
+							Func: exString{"avg"},
+							Name: exString{"custom.nginx.requests.avg_requests"},
 						},
 					},
 				},
 				&MetricConfig{
-					Name: "custom.nginx.connections.connections",
+					Name: exString{"custom.nginx.connections.connections"},
 					Outputs: []*OutputConfig{
 						&OutputConfig{
-							Func: "avg",
-							Name: "custom.nginx.connections.avg_connections",
+							Func: exString{"avg"},
+							Name: exString{"custom.nginx.connections.avg_connections"},
 						},
 					},
 				},
