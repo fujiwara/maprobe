@@ -51,8 +51,8 @@ func (s *exString) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func exStrings(es []exString) []string {
 	ss := make([]string, 0, len(es))
-	for i, s := range es {
-		ss[i] = s.String()
+	for _, s := range es {
+		ss = append(ss, s.String())
 	}
 	return ss
 }
