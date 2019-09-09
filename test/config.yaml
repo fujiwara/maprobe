@@ -32,7 +32,7 @@ probes:
       no_check_certificate: true
 
 aggregates:
-  - service: prod
+  - service: '{{ env "SERVICE" }}'
     role: web
     metrics:
       - name: custom.nginx.requests.requests

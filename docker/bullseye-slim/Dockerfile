@@ -7,11 +7,10 @@ COPY . /go/src/github.com/fujiwara/maprobe
 WORKDIR /go/src/github.com/fujiwara/maprobe
 RUN make install
 
-FROM mackerel/mackerel-agent:0.60.0
+FROM debian:bullseye-slim
 LABEL maintainer "fujiwara <fujiwara.shunichiro@gmail.com>"
-RUN yum -y install mkr && yum -y clean all
+
+RUN apt-get update && apt-get -y install ca-certificates && apt-get clean
 COPY --from=build-env /go/bin/maprobe /usr/bin
-ADD docker/mackerel-plugins/entrypoint /entrypoint
-ENV INSTALL_MKR_PLUGINS=
 WORKDIR /
-ENTRYPOINT ["/entrypoint"]
+ENTRYPOINT ["/usr/bin/maprobe"]

@@ -49,6 +49,14 @@ func (s *exString) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return err
 }
 
+func exStrings(es []exString) []string {
+	ss := make([]string, 0, len(es))
+	for _, s := range es {
+		ss = append(ss, s.String())
+	}
+	return ss
+}
+
 type ProbeDefinition struct {
 	Service  exString   `yaml:"service"`
 	Role     exString   `yaml:"role"`
@@ -135,7 +143,7 @@ func (c *Config) initialize() error {
 		}
 	}
 	for _, ad := range c.Aggregates {
-		if ad.Role != "" {
+		if r := ad.Role.String(); r != "" {
 			ad.Roles = append(ad.Roles, ad.Role)
 		}
 	}
@@ -151,12 +159,12 @@ func (c *Config) validate() error {
 	for _, ag := range c.Aggregates {
 		for _, mc := range ag.Metrics {
 			for _, oc := range mc.Outputs {
-				switch strings.ToLower(oc.Func) {
+				switch strings.ToLower(oc.Func.String()) {
 				case "sum":
 					oc.calc = sum
-				case "min":
+				case "min", "minimum":
 					oc.calc = min
-				case "max":
+				case "max", "maximum":
 					oc.calc = max
 				case "avg", "average":
 					oc.calc = avg
@@ -224,21 +232,21 @@ func fetchS3(u *url.URL) ([]byte, error) {
 }
 
 type AggregateDefinition struct {
-	Service  string          `yaml:"service"`
-	Role     string          `yaml:"role"`
-	Roles    []string        `yaml:"roles"`
-	Statuses []string        `yaml:"statuses"`
+	Service  exString        `yaml:"service"`
+	Role     exString        `yaml:"role"`
+	Roles    []exString      `yaml:"roles"`
+	Statuses []exString      `yaml:"statuses"`
 	Metrics  []*MetricConfig `yaml:"metrics"`
 }
 
 type MetricConfig struct {
-	Name    string          `yaml:"name"`
+	Name    exString        `yaml:"name"`
 	Outputs []*OutputConfig `yaml:"outputs"`
 }
 
 type OutputConfig struct {
-	Func string `yaml:"func"`
-	Name string `yaml:"name"`
+	Func exString `yaml:"func"`
+	Name exString `yaml:"name"`
 
 	calc func([]float64) float64
 }

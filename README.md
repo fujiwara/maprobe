@@ -287,9 +287,9 @@ This configuration posts service metrics (for service "production") as below.
 Following functions are available to aggregate host metrics.
 
 - sum
-- min
-- max
-- avg
+- min / minimum
+- max / maximum
+- avg / average
 - count
 
 ## Author
