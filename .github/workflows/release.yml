@@ -23,6 +23,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        export PATH=~/go/bin:$PATH
         make setup_ci
         make dist
         make release
