@@ -20,10 +20,9 @@ setup:
 
 setup_ci:
 	GO111MODULE=off go get \
-		github.com/Songmu/goxz \
+		github.com/Songmu/goxz/cmd/goxz \
 		github.com/tcnksm/ghr \
 		golang.org/x/lint/golint
-	go get -d -t ./...
 
 lint: setup
 	go vet ./...
