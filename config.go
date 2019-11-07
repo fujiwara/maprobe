@@ -245,8 +245,9 @@ type MetricConfig struct {
 }
 
 type OutputConfig struct {
-	Func exString `yaml:"func"`
-	Name exString `yaml:"name"`
+	Func     exString `yaml:"func"`
+	Name     exString `yaml:"name"`
+	EmitZero bool     `yaml:"emit_zero"`
 
 	calc func([]float64) float64
 }
