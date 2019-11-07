@@ -27,3 +27,15 @@ jobs:
         make setup_ci
         make dist
         make release
+
+    - name: docker
+      run: |
+        export TAG=$(echo $GITHUB_REF | cut -d/ -f3)
+        echo $DOCKER_TOKEN | docker login -u fujiwara --password-stdin
+        for name in *
+        do
+          docker build --build-arg version=$TAG -t fujiwara/maprobe:${TAG}-${name} -f docker/${name}/Dockerfile .
+          docker push fujiwara/maprobe:${TAG}-${name}
+        done
+      env:
+        DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
