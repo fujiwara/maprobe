@@ -32,9 +32,14 @@ jobs:
       run: |
         export TAG=$(echo $GITHUB_REF | cut -d/ -f3)
         echo $DOCKER_TOKEN | docker login -u fujiwara --password-stdin
-        for name in *
+        for dir in docker/*
         do
-          docker build --build-arg version=$TAG -t fujiwara/maprobe:${TAG}-${name} -f docker/${name}/Dockerfile .
+          echo "Building $dir"
+          name=$(basename $dir)
+          docker build --build-arg version=$TAG \
+            -t fujiwara/maprobe:${TAG}-${name} \
+            -f ${dir}/Dockerfile \
+            .
           docker push fujiwara/maprobe:${TAG}-${name}
         done
       env:
