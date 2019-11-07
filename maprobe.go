@@ -52,20 +52,20 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer close(sch)
 
 	if len(conf.Probes) > 0 {
+		wg.Add(1)
 		if conf.PostProbedMetrics {
-			wg.Add(1)
 			go postHostMetricWorker(wg, client, hch)
 		} else {
-			go dumpHostMetricWorker(hch)
+			go dumpHostMetricWorker(wg, hch)
 		}
 	}
 
 	if len(conf.Aggregates) > 0 {
+		wg.Add(1)
 		if conf.PostAggregatedMetrics {
-			wg.Add(1)
 			go postServiceMetricWorker(wg, client, sch)
 		} else {
-			go dumpServiceMetricWorker(sch)
+			go dumpServiceMetricWorker(wg, sch)
 		}
 	}
 
@@ -347,7 +347,8 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch cha
 	}
 }
 
-func dumpHostMetricWorker(ch chan HostMetric) {
+func dumpHostMetricWorker(wg *sync.WaitGroup, ch chan HostMetric) {
+	defer wg.Done()
 	log.Println("[info] starting dumpHostMetricWorker")
 	for m := range ch {
 		b, _ := json.Marshal(m.HostMetricValue())
@@ -355,7 +356,8 @@ func dumpHostMetricWorker(ch chan HostMetric) {
 	}
 }
 
-func dumpServiceMetricWorker(ch chan ServiceMetric) {
+func dumpServiceMetricWorker(wg *sync.WaitGroup, ch chan ServiceMetric) {
+	defer wg.Done()
 	log.Println("[info] starting dumpServiceMetricWorker")
 	for m := range ch {
 		b, _ := json.Marshal(m.MetricValue())
