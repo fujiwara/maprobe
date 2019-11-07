@@ -52,20 +52,20 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer close(sch)
 
 	if len(conf.Probes) > 0 {
+		wg.Add(1)
 		if conf.PostProbedMetrics {
-			wg.Add(1)
 			go postHostMetricWorker(wg, client, hch)
 		} else {
-			go dumpHostMetricWorker(hch)
+			go dumpHostMetricWorker(wg, hch)
 		}
 	}
 
 	if len(conf.Aggregates) > 0 {
+		wg.Add(1)
 		if conf.PostAggregatedMetrics {
-			wg.Add(1)
 			go postServiceMetricWorker(wg, client, sch)
 		} else {
-			go dumpServiceMetricWorker(sch)
+			go dumpServiceMetricWorker(wg, sch)
 		}
 	}
 
@@ -184,9 +184,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 		return
 	}
 	log.Printf("[debug] aggregates %d hosts found", len(hosts))
-	if len(hosts) == 0 {
-		return
-	}
+
 	hostIDs := make([]string, 0, len(hosts))
 	for _, h := range hosts {
 		hostIDs = append(hostIDs, h.ID)
@@ -209,7 +207,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 	now := time.Now()
 	for _, mc := range ag.Metrics {
 		name := mc.Name.String()
-		var timestamp float64
+		var timestamp int64
 		values := []float64{}
 		for hostID, metrics := range latest {
 			if _v, ok := metrics[name]; ok {
@@ -226,28 +224,38 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 				log.Printf("[trace] latest %s:%s:%d = %f", hostID, name, _v.Time, v)
 				if ts.After(now.Add(metricTimeMargin)) {
 					values = append(values, v)
-					timestamp = math.Max(float64(_v.Time), timestamp)
+					if _v.Time > timestamp {
+						timestamp = _v.Time
+					}
 				} else {
 					log.Printf("[warn] latest %s:%s at %s is outdated", hostID, name, ts)
 				}
 			}
 		}
-		if len(values) == 0 {
+		if len(hosts) > 0 && len(values) == 0 {
 			log.Printf("[warn] %s:%s latest values are not found", ag.Service, mc.Name)
-			continue
 		}
 
 		for _, output := range mc.Outputs {
-			value := output.calc(values)
-			log.Printf("[debug] aggregates %s(%s)=%f -> %s:%s",
+			var value float64
+			if len(values) == 0 {
+				if !output.EmitZero {
+					continue
+				}
+				timestamp = now.Add(-1 * time.Minute).Unix()
+			} else {
+				value = output.calc(values)
+			}
+			log.Printf("[debug] aggregates %s(%s)=%f -> %s:%s timestamp %d",
 				output.Func, name, value,
 				ag.Service, output.Name,
+				timestamp,
 			)
 			ch <- ServiceMetric{
 				Service:   ag.Service.String(),
 				Name:      output.Name.String(),
 				Value:     value,
-				Timestamp: time.Unix(int64(timestamp), 0),
+				Timestamp: time.Unix(timestamp, 0),
 			}
 		}
 	}
@@ -339,7 +347,8 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch cha
 	}
 }
 
-func dumpHostMetricWorker(ch chan HostMetric) {
+func dumpHostMetricWorker(wg *sync.WaitGroup, ch chan HostMetric) {
+	defer wg.Done()
 	log.Println("[info] starting dumpHostMetricWorker")
 	for m := range ch {
 		b, _ := json.Marshal(m.HostMetricValue())
@@ -347,7 +356,8 @@ func dumpHostMetricWorker(ch chan HostMetric) {
 	}
 }
 
-func dumpServiceMetricWorker(ch chan ServiceMetric) {
+func dumpServiceMetricWorker(wg *sync.WaitGroup, ch chan ServiceMetric) {
+	defer wg.Done()
 	log.Println("[info] starting dumpServiceMetricWorker")
 	for m := range ch {
 		b, _ := json.Marshal(m.MetricValue())
