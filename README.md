@@ -200,6 +200,9 @@ command:
   command: "/path/to/metric-command -option=foo" # execute command
   timeout: "5s"                      # Seconds of command timeout (default 15)
   graph_defs: true                   # Post graph definitions to Mackerel (default false)
+  env:  # environment variables for command execution
+    FOO: foo
+    BAR: bar
 ```
 
 `command` accepts both a single string value and an array value. If an array value is passed, these are not processed by shell.
