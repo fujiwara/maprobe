@@ -19,11 +19,17 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
 
+    - name: setup tools
+      run: |
+        mkdir ~/bin
+        curl -sL https://github.com/Songmu/goxz/releases/download/v0.4.1/goxz_v0.4.1_linux_amd64.tar.gz | tar zxvf - && install goxz_v0.4.1_linux_amd64/goxz ~/bin/
+        curl -sL https://github.com/tcnksm/ghr/releases/download/v0.13.0/ghr_v0.13.0_linux_amd64.tar.gz | tar zxvf - && install ghr_v0.13.0_linux_amd64/ghr ~/bin/
+
     - name: release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        export PATH=~/go/bin:$PATH
+        export PATH=~/go/bin:~/bin:$PATH
         make setup_ci
         make dist
         make release
