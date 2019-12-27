@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -112,6 +113,21 @@ func (p *CommandProbe) String() string {
 	return string(b)
 }
 
+func (p *CommandProbe) TempDir() string {
+	dir := filepath.Join(os.TempDir(), "maprobe_host_id_"+p.hostID)
+	err := os.Mkdir(dir, 0700)
+	if err != nil {
+		if os.IsExist(err) {
+			// ok
+			return dir
+		}
+		log.Printf("[warn] failed to create a new TempDir %s: %s using %s", dir, err, os.TempDir())
+		return os.TempDir()
+	}
+	log.Printf("[debug] TempDir %s created for %s", dir, strings.Join(p.Command, " "))
+	return dir
+}
+
 func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
@@ -125,6 +141,10 @@ func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	default:
 		cmd = exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
 	}
+	for _, env := range os.Environ() {
+		cmd.Env = append(cmd.Env, env)
+	}
+	cmd.Env = append(cmd.Env, "TMPDIR="+p.TempDir())
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
