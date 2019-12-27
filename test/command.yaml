@@ -5,3 +5,15 @@ probes:
       graph_defs: true
   - command:
       command: "./test/command-plugin 'XXX{{ .Host.ID }}' | sed -e 's/XXX//'"
+  - command:
+      command: "./test/command-plugin env"
+      env:
+        FOO: foo
+  - command:
+      command: "./test/command-plugin {{must_env `FOO`}}"
+      env:
+        FOO: foo
+  - command:
+      command: "./test/command-plugin {{must_env `FOO`}}"
+      env:
+        FOO: bar

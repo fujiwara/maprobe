@@ -45,23 +45,23 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	}
 	var err error
 
-	p.Host, err = expandPlaceHolder(pc.Host, host)
+	p.Host, err = expandPlaceHolder(pc.Host, host, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid host")
 	}
 
-	p.Port, err = expandPlaceHolder(pc.Port, host)
+	p.Port, err = expandPlaceHolder(pc.Port, host, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invaild port")
 	}
 
-	p.Send, err = expandPlaceHolder(pc.Send, host)
+	p.Send, err = expandPlaceHolder(pc.Send, host, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid send")
 	}
 
 	var pattern string
-	pattern, err = expandPlaceHolder(pc.ExpectPattern, host)
+	pattern, err = expandPlaceHolder(pc.ExpectPattern, host, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid expect_pattern")
 	}

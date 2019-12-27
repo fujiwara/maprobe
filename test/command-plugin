@@ -38,5 +38,5 @@ then
 }
 EOF
 else
-    echo "test.$1.ok\t1\t1523261168"
+    echo "test.${1}${FOO}.ok\t1\t1523261168"
 fi

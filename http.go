@@ -39,7 +39,7 @@ func (pc *HTTPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 		NoCheckCertificate: pc.NoCheckCertificate,
 	}
 	var err error
-	p.URL, err = expandPlaceHolder(pc.URL, host)
+	p.URL, err = expandPlaceHolder(pc.URL, host, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid URL")
 	}
@@ -49,19 +49,19 @@ func (pc *HTTPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 
 	p.Headers = make(map[string]string, len(pc.Headers))
 	for name, value := range pc.Headers {
-		p.Headers[name], err = expandPlaceHolder(value, host)
+		p.Headers[name], err = expandPlaceHolder(value, host, nil)
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid header "+name)
 		}
 	}
 
-	p.Body, err = expandPlaceHolder(pc.Body, host)
+	p.Body, err = expandPlaceHolder(pc.Body, host, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid body")
 	}
 
 	var pattern string
-	pattern, err = expandPlaceHolder(pc.ExpectPattern, host)
+	pattern, err = expandPlaceHolder(pc.ExpectPattern, host, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid expect_pattern")
 	}

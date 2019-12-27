@@ -61,27 +61,40 @@ var (
 	expandCache = sync.Map{}
 )
 
-var funcMap = template.FuncMap{
-	"env": func(keys ...string) string {
-		v := ""
-		for _, k := range keys {
-			v = os.Getenv(k)
-			if v != "" {
+func newFuncMap(env map[string]string) template.FuncMap {
+	return template.FuncMap{
+		"env": func(keys ...string) string {
+			v := ""
+			for _, k := range keys {
+				if v, ok := env[k]; ok {
+					return v
+				}
+				if v := os.Getenv(k); v != "" {
+					return v
+				}
+				v = k
+			}
+			return v
+		},
+		"must_env": func(key string) string {
+			if v, ok := env[key]; ok {
+				return v
+			} else if v, ok := os.LookupEnv(key); ok {
 				return v
 			}
-			v = k
-		}
-		return v
-	},
-	"must_env": func(key string) string {
-		if v, ok := os.LookupEnv(key); ok {
-			return v
-		}
-		panic(fmt.Sprintf("environment variable %s is not defined", key))
-	},
+			panic(fmt.Sprintf("environment variable %s is not defined", key))
+		},
+	}
 }
 
-func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
+func expandCacheKey(src string, env map[string]string) string {
+	if env == nil {
+		return src
+	}
+	return fmt.Sprintf("%s%s", env, src)
+}
+
+func expandPlaceHolder(src string, host *mackerel.Host, env map[string]string) (string, error) {
 	var err error
 
 	if strings.Index(src, "{{") == -1 {
@@ -90,12 +103,13 @@ func expandPlaceHolder(src string, host *mackerel.Host) (string, error) {
 	}
 
 	var tmpl *template.Template
-	if _tmpl, ok := expandCache.Load(src); ok {
-		log.Println("[trace] expand cache HIT", src)
+	key := expandCacheKey(src, env)
+	if _tmpl, ok := expandCache.Load(key); ok {
+		log.Println("[trace] expand cache HIT", key)
 		tmpl = _tmpl.(*template.Template)
 	} else {
-		log.Println("[trace] expand cache MISS", src)
-		tmpl, err = template.New(src).Funcs(funcMap).Parse(src)
+		log.Println("[trace] expand cache MISS", key)
+		tmpl, err = template.New(key).Funcs(newFuncMap(env)).Parse(src)
 		if err != nil {
 			return "", err
 		}
