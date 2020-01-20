@@ -32,7 +32,7 @@ func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 		Count:           pc.Count,
 		Timeout:         pc.Timeout,
 	}
-	if addr, err := expandPlaceHolder(pc.Address, host); err != nil {
+	if addr, err := expandPlaceHolder(pc.Address, host, nil); err != nil {
 		return nil, err
 	} else {
 		p.Address = addr

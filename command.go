@@ -26,10 +26,11 @@ var DefaultCommandTimeout = 15 * time.Second
 var graphDefsPosted = sync.Map{}
 
 type CommandProbeConfig struct {
-	RawCommand interface{}   `yaml:"command"`
-	command    []string      `yaml:"-"`
-	Timeout    time.Duration `yaml:"timeout"`
-	GraphDefs  bool          `yaml:"graph_defs"`
+	RawCommand interface{}       `yaml:"command"`
+	command    []string          `yaml:"-"`
+	Timeout    time.Duration     `yaml:"timeout"`
+	GraphDefs  bool              `yaml:"graph_defs"`
+	Env        map[string]string `yaml:"env"`
 }
 
 func (pc *CommandProbeConfig) initialize() error {
@@ -69,7 +70,7 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 	var err error
 
 	for i, c := range pc.command {
-		p.Command[i], err = expandPlaceHolder(c, host)
+		p.Command[i], err = expandPlaceHolder(c, host, pc.Env)
 		if err != nil {
 			return nil, errors.Wrap(err, "invalid command")
 		}
@@ -88,12 +89,16 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 			log.Printf("[warn] failed to post graph defs for %#v: %s", p, err)
 		}
 	}
+	for name, value := range pc.Env {
+		p.env = append(p.env, name+"="+value)
+	}
 
 	return p, nil
 }
 
 type CommandProbe struct {
 	hostID string
+	env    []string
 
 	Command   []string
 	Timeout   time.Duration
@@ -142,6 +147,9 @@ func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 		cmd = exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
 	}
 	for _, env := range os.Environ() {
+		cmd.Env = append(cmd.Env, env)
+	}
+	for _, env := range p.env {
 		cmd.Env = append(cmd.Env, env)
 	}
 	cmd.Env = append(cmd.Env, "TMPDIR="+p.TempDir())

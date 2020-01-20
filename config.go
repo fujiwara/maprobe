@@ -43,7 +43,7 @@ func (s *exString) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var str string
 	err := unmarshal(&str)
 	if err == nil {
-		s.Value, err = expandPlaceHolder(str, nil)
+		s.Value, err = expandPlaceHolder(str, nil, nil)
 		return err
 	}
 	return err
