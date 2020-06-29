@@ -45,3 +45,5 @@ aggregates:
         outputs:
           - func: avg
             name: custom.nginx.connections.avg_connections
+          - func: median
+            name: custom.nginx.connections.median_connections
