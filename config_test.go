@@ -80,6 +80,10 @@ var testConfigExpected = &Config{
 							Func: exString{"avg"},
 							Name: exString{"custom.nginx.connections.avg_connections"},
 						},
+						&OutputConfig{
+							Func: exString{"median"},
+							Name: exString{"custom.nginx.connections.median_connections"},
+						},
 					},
 				},
 			},

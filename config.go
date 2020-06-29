@@ -168,6 +168,8 @@ func (c *Config) validate() error {
 					oc.calc = max
 				case "avg", "average":
 					oc.calc = avg
+				case "median":
+					oc.calc = median
 				case "count":
 					oc.calc = count
 				default:
