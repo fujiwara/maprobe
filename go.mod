@@ -3,18 +3,15 @@ module github.com/fujiwara/maprobe
 go 1.12
 
 require (
-	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc // indirect
-	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
-	github.com/aws/aws-sdk-go v1.19.11
-	github.com/google/go-cmp v0.2.0
-	github.com/google/gops v0.3.6
+	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
+	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
+	github.com/aws/aws-sdk-go v1.35.6
+	github.com/google/go-cmp v0.5.2
+	github.com/google/gops v0.3.12
 	github.com/hashicorp/logutils v1.0.0
-	github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 // indirect
-	github.com/mackerelio/mackerel-client-go v0.2.0
-	github.com/pkg/errors v0.8.1
-	github.com/stretchr/testify v1.3.0 // indirect
+	github.com/mackerelio/mackerel-client-go v0.11.0
+	github.com/pkg/errors v0.9.1
 	github.com/tatsushid/go-fastping v0.0.0-20160109021039-d7bb493dee3e
-	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/yaml.v2 v2.2.2
+	gopkg.in/yaml.v2 v2.3.0
 )

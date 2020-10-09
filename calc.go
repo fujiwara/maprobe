@@ -6,6 +6,9 @@ import (
 )
 
 func sum(values []float64) (value float64) {
+	if len(values) == 0 {
+		return 0
+	}
 	for _, v := range values {
 		value = value + v
 	}
@@ -13,6 +16,10 @@ func sum(values []float64) (value float64) {
 }
 
 func min(values []float64) (value float64) {
+	if len(values) == 0 {
+		return 0
+	}
+	value = math.MaxFloat64
 	for _, v := range values {
 		value = math.Min(v, value)
 	}
@@ -20,6 +27,9 @@ func min(values []float64) (value float64) {
 }
 
 func max(values []float64) (value float64) {
+	if len(values) == 0 {
+		return 0
+	}
 	for _, v := range values {
 		value = math.Max(v, value)
 	}
@@ -31,17 +41,20 @@ func count(values []float64) (value float64) {
 }
 
 func avg(values []float64) (value float64) {
+	if len(values) == 0 {
+		return 0
+	}
 	return sum(values) / count(values)
 }
 
 func median(values []float64) (value float64) {
-	len := len(values)
-
-	sort.Float64s(values)
-
-	if len%2 == 0 {
-		return (values[len/2-1] + values[len/2]) / 2.0
+	if len(values) == 0 {
+		return 0
 	}
-	return values[(len-1)/2]
-
+	size := len(values)
+	sort.Float64s(values)
+	if size%2 == 0 {
+		return (values[size/2-1] + values[size/2]) / 2
+	}
+	return values[(size-1)/2]
 }
