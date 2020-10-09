@@ -1,5 +1,6 @@
 export GO111MODULE := on
 LATEST_TAG := $(shell git describe --abbrev=0 --tags)
+TAG ?= latest
 
 .PHONY: setup setup_ci test lint dist clean release
 
@@ -33,3 +34,16 @@ clean:
 
 release: dist
 	ghr -u fujiwara -r maprobe $(LATEST_TAG) dist/
+
+docker-build/%:
+	docker build --build-arg version=${TAG} \
+      	-t fujiwara/maprobe:${TAG}-$* \
+      	-f docker/$*/Dockerfile \
+    	.
+
+docker-build-all: docker-build/bullseye-slim docker-build/buster-slim docker-build/mackerel-plugins docker-build/plain
+
+docker-push/%:
+	docker push fujiwara/maprobe:${TAG}-$*
+
+docker-push-all: docker-push/bullseye-slim docker-push/buster-slim docker-push/mackerel-plugins docker-push/plain

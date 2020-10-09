@@ -38,15 +38,7 @@ jobs:
         run: |
           export TAG=$(echo $GITHUB_REF | cut -d/ -f3)
           echo $DOCKER_TOKEN | docker login -u fujiwara --password-stdin
-          for dir in docker/*
-          do
-            echo "Building $dir"
-            name=$(basename $dir)
-            docker build --build-arg version=$TAG \
-              -t fujiwara/maprobe:${TAG}-${name} \
-              -f ${dir}/Dockerfile \
-              .
-            docker push fujiwara/maprobe:${TAG}-${name}
-          done
+          make docker-build-all
+          make docker-push-all
         env:
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
