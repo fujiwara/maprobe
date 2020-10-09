@@ -1,6 +1,9 @@
 package maprobe
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
 func sum(values []float64) (value float64) {
 	for _, v := range values {
@@ -29,4 +32,16 @@ func count(values []float64) (value float64) {
 
 func avg(values []float64) (value float64) {
 	return sum(values) / count(values)
+}
+
+func median(values []float64) (value float64) {
+	len := len(values)
+
+	sort.Float64s(values)
+
+	if len%2 == 0 {
+		return (values[len/2-1] + values[len/2]) / 2.0
+	}
+	return values[(len-1)/2]
+
 }

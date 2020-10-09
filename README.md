@@ -293,6 +293,7 @@ Following functions are available to aggregate host metrics.
 - min / minimum
 - max / maximum
 - avg / average
+- median
 - count
 
 ## Author
