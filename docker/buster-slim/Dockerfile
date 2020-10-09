@@ -7,10 +7,10 @@ COPY . /go/src/github.com/fujiwara/maprobe
 WORKDIR /go/src/github.com/fujiwara/maprobe
 RUN make install
 
-FROM alpine:3.12
+FROM debian:buster-slim
 LABEL maintainer "fujiwara <fujiwara.shunichiro@gmail.com>"
 
-RUN apk --no-cache add ca-certificates
+RUN apt-get update && apt-get -y install ca-certificates && apt-get clean
 COPY --from=build-env /go/bin/maprobe /usr/bin
 WORKDIR /
 ENTRYPOINT ["/usr/bin/maprobe"]
