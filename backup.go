@@ -2,6 +2,7 @@ package maprobe
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/mackerelio/mackerel-client-go"
@@ -19,6 +20,7 @@ type backupPayload struct {
 }
 
 func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.MetricValue) error {
+	log.Println("[info] post service metrics to backup stream:", c.streamName)
 	data, err := json.Marshal(backupPayload{
 		Service:      service,
 		MetricValues: mvs,
@@ -34,6 +36,7 @@ func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.M
 }
 
 func (c *backupClient) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
+	log.Println("[info] post host metrics to backup stream:", c.streamName)
 	data, err := json.Marshal(backupPayload{
 		HostMetricValues: mvs,
 	})

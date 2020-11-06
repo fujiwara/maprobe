@@ -1,7 +1,9 @@
 package maprobe
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -19,7 +21,9 @@ func newClient(apiKey string, backupStream string) *Client {
 	c := &Client{
 		mackerel: mackerel.NewClient(apiKey),
 	}
+	// c.mackerel.HTTPClient.Transport = &postFailureTransport{}
 	if backupStream != "" {
+		log.Println("[info] setting backup firehose stream:", backupStream)
 		sess := session.Must(session.NewSession())
 		c.backupClient = &backupClient{
 			svc:        firehose.New(sess),
@@ -37,7 +41,7 @@ func (client *Client) FindHosts(p *mackerel.FindHostsParam) ([]*mackerel.Host, e
 	hosts, err := client.mackerel.FindHosts(p)
 	if err != nil {
 		if cachedHosts, found := findHostsCache.Load(key); found {
-			log.Println("[warn] probes find host failed, using cache", err)
+			log.Println("[warn] probes find host failed, using previous cache:", err)
 			hosts = cachedHosts.([]*mackerel.Host)
 		} else {
 			return nil, err
@@ -56,6 +60,7 @@ func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.Met
 	if c.backupClient == nil {
 		return err
 	}
+	log.Println("[warn] failed to post metrics to mackerel:", err)
 	return c.backupClient.PostServiceMetricValues(serviceName, mvs)
 }
 
@@ -67,6 +72,7 @@ func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
 	if c.backupClient == nil {
 		return err
 	}
+	log.Println("[warn] failed to post metrics to mackerel:", err)
 	return c.backupClient.PostHostMetricValues(mvs)
 }
 
@@ -113,4 +119,13 @@ func (c *Client) fetchLatestMetricValues(hostIDs []string, metricNames []string)
 	}
 	wg.Wait()
 	return result, nil
+}
+
+type postFailureTransport struct{}
+
+func (t *postFailureTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
+	if req.Method == http.MethodPost || req.Method == http.MethodPut {
+		return nil, fmt.Errorf("method %s not allowed", req.Method)
+	}
+	return http.DefaultTransport.RoundTrip(req)
 }
