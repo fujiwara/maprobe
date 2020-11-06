@@ -104,7 +104,6 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			log.Println("[debug]", conf)
 		}
 	}
-	return nil
 }
 
 func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client, ch chan HostMetric, wg *sync.WaitGroup) {
@@ -118,7 +117,7 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 	roles := exStrings(pd.Roles)
 	statuses := exStrings(pd.Statuses)
 
-	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
+	hosts, err := findHosts(client, &mackerel.FindHostsParam{
 		Service:  pd.Service.String(),
 		Roles:    roles,
 		Statuses: statuses,
@@ -174,7 +173,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 		statuses,
 	)
 
-	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
+	hosts, err := findHosts(client, &mackerel.FindHostsParam{
 		Service:  service,
 		Roles:    roles,
 		Statuses: statuses,
