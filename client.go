@@ -21,7 +21,6 @@ func newClient(apiKey string, backupStream string) *Client {
 	c := &Client{
 		mackerel: mackerel.NewClient(apiKey),
 	}
-	// c.mackerel.HTTPClient.Transport = &postFailureTransport{}
 	if backupStream != "" {
 		log.Println("[info] setting backup firehose stream:", backupStream)
 		sess := session.Must(session.NewSession())
@@ -125,7 +124,7 @@ type postFailureTransport struct{}
 
 func (t *postFailureTransport) RoundTrip(req *http.Request) (resp *http.Response, err error) {
 	if req.Method == http.MethodPost || req.Method == http.MethodPut {
-		return nil, fmt.Errorf("method %s not allowed", req.Method)
+		return nil, fmt.Errorf("method %s FAILED FORCE", req.Method)
 	}
 	return http.DefaultTransport.RoundTrip(req)
 }

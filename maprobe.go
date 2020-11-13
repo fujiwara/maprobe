@@ -22,7 +22,14 @@ var (
 	ProbeInterval          = 60 * time.Second
 	mackerelRetryInterval  = 10 * time.Second
 	metricTimeMargin       = -3 * time.Minute
+	mackerelAPIKey         string
 )
+
+func init() {
+	if mackerelAPIKey = os.Getenv("MACKEREL_APIKEY"); mackerelAPIKey == "" {
+		panic("MACKEREL_APIKEY environment variable is required")
+	}
+}
 
 func lock() {
 	sem <- struct{}{}
@@ -44,7 +51,11 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		return err
 	}
 	log.Println("[debug]", conf.String())
-	client := newClient(os.Getenv("MACKEREL_APIKEY"), conf.Backup.FirehoseStreamName)
+	client := newClient(mackerelAPIKey, conf.Backup.FirehoseStreamName)
+	if os.Getenv("EMULATE_FAILURE") != "" {
+		// force fail for POST requests
+		client.mackerel.HTTPClient.Transport = &postFailureTransport{}
+	}
 
 	hch := make(chan HostMetric, PostMetricBufferLength*10)
 	defer close(hch)

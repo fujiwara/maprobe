@@ -20,7 +20,7 @@ type backupPayload struct {
 }
 
 func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.MetricValue) error {
-	log.Println("[info] post service metrics to backup stream:", c.streamName)
+	log.Printf("[info] post %d service metrics to backup stream: %s", len(mvs), c.streamName)
 	data, err := json.Marshal(backupPayload{
 		Service:      service,
 		MetricValues: mvs,
@@ -36,7 +36,7 @@ func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.M
 }
 
 func (c *backupClient) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
-	log.Println("[info] post host metrics to backup stream:", c.streamName)
+	log.Printf("[info] post %d host metrics to backup stream: %s", len(mvs), c.streamName)
 	data, err := json.Marshal(backupPayload{
 		HostMetricValues: mvs,
 	})
