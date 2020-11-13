@@ -63,6 +63,9 @@ Commands:
 
   http [<flags>] <url>
     Run HTTP probe
+
+  firehose-endpoint [<flags>]
+    Run Firehose HTTP endpoint
 ```
 
 ### agent / once
@@ -122,6 +125,30 @@ probes:
         - "-host={{ .Host.IPAddress.eth0 }}"
         - "-tempfile=/tmp/redis-{{ .Host.ID }}"
 ```
+
+### Backup metrics using Amazon Kinesis Firehose
+
+When Mackerel API is down, maprobe can backup corrected metrics to Amazon Kinesis Firehose.
+
+```yaml
+backup:
+  firehose_stream_name: your-maprobe-backup
+```
+
+If maprobe cannot post metrics to Mackerel API, maprobe posts these metrics to Firehose stream as backup.
+
+`maprobe agent --with-firehose-endpoint` or `maprobe firehose-endpoint` runs HTTP server for [Firehose HTTP Endpoint](https://docs.amazonaws.cn/en_us/firehose/latest/dev/create-destination.html#create-destination-http).
+
+You can configure the Firehose stream that send data to HTTP endpoint to maprobe's http server.
+
+```
+[maprobe] -XXX-> [Mackerel]
+          \
+        (backup)
+            \---> [Firehose](buffer and retry) --> [maprobe HTTP] --> [Mackerel]
+```
+
+maprobe accepts Firehose HTTP requests and the metrics will send to Mackerel API (if available).
 
 ### Ping
 
