@@ -18,6 +18,10 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
+func init() {
+	maprobe.MackerelAPIKey = os.Getenv("MACKEREL_APIKEY")
+}
+
 var (
 	trapSignals = []os.Signal{
 		syscall.SIGHUP,

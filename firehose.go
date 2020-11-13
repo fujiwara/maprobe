@@ -54,7 +54,7 @@ func RunFirehoseEndpoint(ctx context.Context, wg *sync.WaitGroup, port int) {
 
 func parseFirehoseRequest(r *http.Request) (*firehoseRequestBody, error) {
 	accessKey := r.Header.Get(accessKeyHeaderName)
-	if accessKey != mackerelAPIKey {
+	if accessKey != MackerelAPIKey {
 		return nil, fmt.Errorf("invalid access key")
 	}
 
@@ -91,7 +91,7 @@ func handleFirehoseRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := newClient(mackerelAPIKey, "") // with no backup
+	client := newClient(MackerelAPIKey, "") // with no backup
 	for _, record := range reqBody.Records {
 		var payload backupPayload
 		log.Println("[debug][FirehoseEndpoint] record:", string(record.Data))
