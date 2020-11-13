@@ -48,7 +48,8 @@ type firehoseResponseBody struct {
 func RunFirehoseEndpoint(ctx context.Context, wg *sync.WaitGroup, port int) {
 	defer wg.Done()
 	var mux = http.NewServeMux()
-	mux.HandleFunc("/", handleFirehoseRequest)
+	mux.HandleFunc("/post", handleFirehoseRequest)
+	mux.HandleFunc("/ping", handlePingRequest)
 	ridge.RunWithContext(ctx, fmt.Sprintf(":%d", port), "/", mux)
 }
 
@@ -63,6 +64,11 @@ func parseFirehoseRequest(r *http.Request) (*firehoseRequestBody, error) {
 		return nil, fmt.Errorf("failed to decode request body: %s", err)
 	}
 	return &body, nil
+}
+
+func handlePingRequest(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("content-type", "text/plain")
+	fmt.Fprintln(w, "OK")
 }
 
 func handleFirehoseRequest(w http.ResponseWriter, r *http.Request) {

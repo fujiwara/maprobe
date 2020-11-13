@@ -148,7 +148,11 @@ You can configure the Firehose stream that send data to HTTP endpoint to maprobe
             \---> [Firehose](buffer and retry) --> [maprobe HTTP] --> [Mackerel]
 ```
 
-maprobe accepts Firehose HTTP requests and the metrics will send to Mackerel API (if available).
+Firehose HTTP Endpoint has paths below.
+- `/post` : Post metrics endpoint.
+- `/ping` : Always return 200 OK (for health check).
+
+maprobe accepts Firehose HTTP requests and the metrics will send to Mackerel API (when available).
 
 ### Ping
 
