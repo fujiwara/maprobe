@@ -145,11 +145,12 @@ You can configure the Firehose stream that send data to HTTP endpoint to maprobe
 [maprobe] -XXX-> [Mackerel]
           \
         (backup)
-            \---> [Firehose](buffer and retry) --> [maprobe HTTP] --> [Mackerel]
+            \---> [Firehose](buffer and retry) -(ELB)-> [maprobe HTTP] --> [Mackerel]
 ```
 
 Firehose HTTP Endpoint has paths below.
 - `/post` : Post metrics endpoint.
+  "Access key" must be same the as MACKEREL_APIKEY which set in maprobe.
 - `/ping` : Always return 200 OK (for health check).
 
 maprobe accepts Firehose HTTP requests and the metrics will send to Mackerel API (when available).
