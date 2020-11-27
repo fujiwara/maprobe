@@ -18,6 +18,10 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
+func init() {
+	maprobe.MackerelAPIKey = os.Getenv("MACKEREL_APIKEY")
+}
+
 var (
 	trapSignals = []os.Signal{
 		syscall.SIGHUP,
@@ -31,8 +35,10 @@ var (
 
 	version = app.Command("version", "Show version")
 
-	agent       = app.Command("agent", "Run agent")
-	agentConfig = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
+	agent                     = app.Command("agent", "Run agent")
+	agentConfig               = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
+	agentWithFirehoseEndpoint = agent.Flag("with-firehose-endpoint", "run with firehose HTTP endpoint server").Bool()
+	agentPort                 = agent.Flag("port", "firehose HTTP endpoint listen port").Default("8080").Int()
 
 	once       = app.Command("once", "Run once")
 	onceConfig = once.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
@@ -62,6 +68,9 @@ var (
 	httpNoCheckCertificate = http.Flag("no-check-certificate", "Do not check certificate").Short('k').Bool()
 	httpHeaders            = HTTPHeader(http.Flag("header", "Request headers").Short('H').PlaceHolder("Header: Value"))
 	httpHostID             = http.Flag("host-id", "Mackerel host ID").Short('i').String()
+
+	firehoseEndpoint     = app.Command("firehose-endpoint", "Run Firehose HTTP endpoint")
+	firehoseEndpointPort = firehoseEndpoint.Flag("port", "Listen port").Default("8080").Short('p').Int()
 )
 
 func main() {
@@ -113,6 +122,10 @@ func main() {
 		fmt.Printf("maprobe version %s\n", maprobe.Version)
 		return
 	case "agent":
+		if *agentWithFirehoseEndpoint {
+			wg.Add(1)
+			go maprobe.RunFirehoseEndpoint(ctx, &wg, *agentPort)
+		}
 		wg.Add(1)
 		err = maprobe.Run(ctx, &wg, *agentConfig, false)
 	case "once":
@@ -144,6 +157,9 @@ func main() {
 			ExpectPattern:      *httpExpectPattern,
 			NoCheckCertificate: *httpNoCheckCertificate,
 		})
+	case "firehose-endpoint":
+		wg.Add(1)
+		maprobe.RunFirehoseEndpoint(ctx, &wg, *firehoseEndpointPort)
 	default:
 		err = fmt.Errorf("command %s not exist", sub)
 	}

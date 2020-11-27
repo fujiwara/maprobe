@@ -22,6 +22,7 @@ var (
 	ProbeInterval          = 60 * time.Second
 	mackerelRetryInterval  = 10 * time.Second
 	metricTimeMargin       = -3 * time.Minute
+	MackerelAPIKey         string
 )
 
 func lock() {
@@ -44,7 +45,11 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		return err
 	}
 	log.Println("[debug]", conf.String())
-	client := mackerel.NewClient(os.Getenv("MACKEREL_APIKEY"))
+	client := newClient(MackerelAPIKey, conf.Backup.FirehoseStreamName)
+	if os.Getenv("EMULATE_FAILURE") != "" {
+		// force fail for POST requests
+		client.mackerel.HTTPClient.Transport = &postFailureTransport{}
+	}
 
 	hch := make(chan HostMetric, PostMetricBufferLength*10)
 	defer close(hch)
@@ -104,10 +109,9 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			log.Println("[debug]", conf)
 		}
 	}
-	return nil
 }
 
-func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client, ch chan HostMetric, wg *sync.WaitGroup) {
+func runProbes(ctx context.Context, pd *ProbeDefinition, client *Client, ch chan HostMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Printf(
 		"[debug] probes finding hosts service:%s roles:%s statuses:%v",
@@ -146,7 +150,7 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 			lock()
 			defer unlock()
 			defer wg2.Done()
-			for _, probe := range pd.GenerateProbes(host, client) {
+			for _, probe := range pd.GenerateProbes(host, client.mackerel) {
 				log.Printf("[debug] probing host id:%s name:%s probe:%s", host.ID, host.Name, probe)
 				metrics, err := probe.Run(ctx)
 				if err != nil {
@@ -161,7 +165,7 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *mackerel.Client
 	wg2.Wait()
 }
 
-func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackerel.Client, ch chan ServiceMetric, wg *sync.WaitGroup) {
+func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client, ch chan ServiceMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	service := ag.Service.String()
@@ -198,7 +202,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 
 	// TODO: If latest API will returns metrics refreshed at on minute,
 	// We will replace to client.FetchLatestMetricValues().
-	latest, err := fetchLatestMetricValues(client, hostIDs, metricNames)
+	latest, err := client.fetchLatestMetricValues(hostIDs, metricNames)
 	if err != nil {
 		log.Printf("[error] fetch latest metrics failed. %s hosts:%v metrics:%v", err, hostIDs, metricNames)
 		return
@@ -261,7 +265,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *mackere
 	}
 }
 
-func postHostMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan HostMetric) {
+func postHostMetricWorker(wg *sync.WaitGroup, client *Client, ch chan HostMetric) {
 	log.Println("[info] starting postHostMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
@@ -298,7 +302,7 @@ func postHostMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan H
 	}
 }
 
-func postServiceMetricWorker(wg *sync.WaitGroup, client *mackerel.Client, ch chan ServiceMetric) {
+func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, ch chan ServiceMetric) {
 	log.Println("[info] starting postServiceMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)

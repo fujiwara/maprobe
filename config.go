@@ -29,6 +29,8 @@ type Config struct {
 	PostAggregatedMetrics bool                   `yaml:"post_aggregated_metrics"`
 
 	ProbeOnly *bool `yaml:"probe_only"` // deprecated
+
+	Backup BackupConfig `yaml:"backup"`
 }
 
 type exString struct {
@@ -252,4 +254,8 @@ type OutputConfig struct {
 	EmitZero bool     `yaml:"emit_zero"`
 
 	calc func([]float64) float64
+}
+
+type BackupConfig struct {
+	FirehoseStreamName string `yaml:"firehose_stream_name"`
 }
