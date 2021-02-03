@@ -4,8 +4,6 @@ TAG ?= latest
 
 .PHONY: setup setup_ci test lint dist clean release
 
-test: setup
-	go test -v ./...
 
 cmd/maprobe/maprobe: *.go cmd/maprobe/main.go
 	cd cmd/maprobe && \
