@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	Version                = "0.4.1"
+	Version                = "0.4.2"
 	MaxConcurrency         = 100
 	MaxClientConcurrency   = 5
 	PostMetricBufferLength = 100
