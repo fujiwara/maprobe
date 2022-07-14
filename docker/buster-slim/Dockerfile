@@ -1,4 +1,4 @@
-FROM golang:1.15.7-buster AS build-env
+FROM golang:1.18.4-buster AS build-env
 
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
