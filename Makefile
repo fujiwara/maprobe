@@ -17,6 +17,9 @@ setup:
 	cp test/config.yaml test/config.copy.yaml
 	echo "" >> test/config.mod.yaml
 
+test: setup
+	go test -v ./...
+
 setup_ci:
 	GO111MODULE=off go get golang.org/x/lint/golint
 
