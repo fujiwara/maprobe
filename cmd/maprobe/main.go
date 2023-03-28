@@ -11,6 +11,7 @@ import (
 	"sync"
 	"syscall"
 
+	golambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/fujiwara/maprobe"
 	gops "github.com/google/gops/agent"
 	"github.com/hashicorp/logutils"
@@ -42,6 +43,9 @@ var (
 
 	once       = app.Command("once", "Run once")
 	onceConfig = once.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
+
+	lambda       = app.Command("lambda", "Run on AWS Lambda like once mode")
+	lambdaConfig = lambda.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
 
 	ping        = app.Command("ping", "Run ping probe")
 	pingAddress = ping.Arg("address", "Hostname or IP address").Required().String()
@@ -78,9 +82,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	var err error
-
-	sub, err := app.Parse(os.Args[1:])
+	var args []string
+	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
+		// detect running on AWS Lambda
+		args = []string{"lambda"}
+	} else {
+		args = os.Args[1:]
+	}
+	sub, err := app.Parse(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -131,6 +140,12 @@ func main() {
 	case "once":
 		wg.Add(1)
 		err = maprobe.Run(ctx, &wg, *onceConfig, true)
+	case "lambda":
+		log.Println("[info] Running on AWS Lambda with config", *lambdaConfig)
+		golambda.StartWithOptions(func(ctx context.Context) error {
+			wg.Add(1)
+			return maprobe.Run(ctx, &wg, *lambdaConfig, true)
+		}, golambda.WithContext(ctx))
 	case "ping":
 		err = runProbe(ctx, *pingHostID, &maprobe.PingProbeConfig{
 			Address: *pingAddress,
