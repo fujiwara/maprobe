@@ -31,8 +31,9 @@ var (
 		syscall.SIGQUIT,
 	}
 
-	app      = kingpin.New("maprobe", "")
-	logLevel = app.Flag("log-level", "log level").Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").String()
+	app         = kingpin.New("maprobe", "")
+	logLevel    = app.Flag("log-level", "log level").Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").String()
+	gopsEnabled = app.Flag("gops", "enable gops agent").Default("false").OverrideDefaultFromEnvar("GOPS").Bool()
 
 	version = app.Command("version", "Show version")
 
@@ -78,20 +79,25 @@ var (
 )
 
 func main() {
-	if err := gops.Listen(gops.Options{}); err != nil {
-		log.Fatal(err)
+	log.Println("[info] maprobe", maprobe.Version)
+
+	if *gopsEnabled {
+		if err := gops.Listen(gops.Options{}); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	var args []string
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// detect running on AWS Lambda
+		log.Println("[info] running on AWS Lambda")
 		args = []string{"lambda"}
 	} else {
 		args = os.Args[1:]
 	}
 	sub, err := app.Parse(args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.Println("[error]", err)
 		os.Exit(1)
 	}
 
