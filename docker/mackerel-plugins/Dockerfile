@@ -1,5 +1,10 @@
-FROM golang:1.18.4-buster AS build-env
+FROM --platform=${BUILDPLATFORM} golang:1.18.4-buster AS build-env
 
+ARG TARGETOS
+ARG TARGETARCH
+
+ENV GOOS=${TARGETOS}
+ENV GOARCH=${TARGETARCH}
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
 RUN apt-get update && apt-get -y install sudo
