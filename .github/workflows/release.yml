@@ -34,11 +34,16 @@ jobs:
           make dist
           make release
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: docker
         run: |
           export TAG=$(echo $GITHUB_REF | cut -d/ -f3)
           echo $DOCKER_TOKEN | docker login -u fujiwara --password-stdin
-          make docker-build-all
-          make docker-push-all
+          make docker-build-push-all
         env:
           DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}

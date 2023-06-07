@@ -28,7 +28,7 @@ lint: setup
 	golint -set_exit_status ./...
 
 dist: setup
-	CGO_ENABLED=0 goxz -pv=$(LATEST_TAG) -os=darwin,linux -build-ldflags="-w -s" -arch=amd64 -d=dist -z ./cmd/maprobe
+	CGO_ENABLED=0 goxz -pv=$(LATEST_TAG) -os=darwin,linux -build-ldflags="-w -s" -arch=amd64,arm64 -d=dist -z ./cmd/maprobe
 
 clean:
 	rm -fr dist/* test/config.*.yaml cmd/maprobe/maprobe
@@ -48,3 +48,13 @@ docker-push/%:
 	docker push fujiwara/maprobe:${TAG}-$*
 
 docker-push-all: docker-push/bullseye-slim docker-push/buster-slim docker-push/mackerel-plugins docker-push/plain
+
+docker-build-push/%:
+	docker buildx build --build-arg version=${TAG} \
+      	--platform=linux/amd64,linux/arm64 \
+      	-t maprobe:${TAG}-$* \
+      	-f docker/$*/Dockerfile \
+      	--push \
+      	.
+
+docker-build-push-all: docker-build-push/bullseye-slim docker-build-push/buster-slim docker-build-push/mackerel-plugins docker-build-push/plain
