@@ -51,10 +51,10 @@ docker-push-all: docker-push/bullseye-slim docker-push/buster-slim docker-push/m
 
 docker-build-push/%:
 	docker buildx build --build-arg version=${TAG} \
-      	--platform=linux/amd64,linux/arm64 \
-      	-t maprobe:${TAG}-$* \
-      	-f docker/$*/Dockerfile \
-      	--push \
-      	.
+		--platform=linux/amd64,linux/arm64 \
+		-t fujiwara/maprobe:${TAG}-$* \
+		-f docker/$*/Dockerfile \
+		--push \
+		.
 
 docker-build-push-all: docker-build-push/bullseye-slim docker-build-push/buster-slim docker-build-push/mackerel-plugins docker-build-push/plain

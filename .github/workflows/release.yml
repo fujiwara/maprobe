@@ -50,5 +50,3 @@ jobs:
         run: |
           export TAG=$(echo $GITHUB_REF | cut -d/ -f3)
           make docker-build-push-all
-        env:
-          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
