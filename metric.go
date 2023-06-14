@@ -1,5 +1,9 @@
 package maprobe
 
-type Metric interface {
-	ServiceMetric | HostMetric
+import "time"
+
+type Metric struct {
+	Name      string
+	Value     float64
+	Timestamp time.Time
 }

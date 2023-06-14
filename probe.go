@@ -35,10 +35,8 @@ func (ms HostMetrics) String() string {
 }
 
 type HostMetric struct {
-	HostID    string
-	Name      string
-	Value     float64
-	Timestamp time.Time
+	HostID string
+	Metric
 }
 
 func (m HostMetric) HostMetricValue() *mackerel.HostMetricValue {
@@ -122,10 +120,11 @@ func expandPlaceHolder(src string, host *mackerel.Host, env map[string]string) (
 }
 
 func newMetric(p Probe, name string, value float64) HostMetric {
-	return HostMetric{
-		HostID:    p.HostID(),
-		Name:      p.MetricName(name),
-		Value:     value,
-		Timestamp: time.Now(),
+	m := HostMetric{
+		HostID: p.HostID(),
 	}
+	m.Name = p.MetricName(name)
+	m.Value = value
+	m.Timestamp = time.Now()
+	return m
 }

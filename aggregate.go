@@ -3,7 +3,6 @@ package maprobe
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
@@ -20,10 +19,8 @@ func (ms ServiceMetrics) String() string {
 }
 
 type ServiceMetric struct {
-	Service   string
-	Name      string
-	Value     float64
-	Timestamp time.Time
+	Service string
+	Metric
 }
 
 func (m ServiceMetric) MetricValue() *mackerel.MetricValue {

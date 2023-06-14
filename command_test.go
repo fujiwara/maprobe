@@ -13,42 +13,52 @@ import (
 var commandProbesExpect = []maprobe.HostMetrics{
 	{
 		maprobe.HostMetric{
-			HostID:    "test",
-			Name:      "custom.test.test.ok",
-			Value:     1,
-			Timestamp: time.Unix(1523261168, 0),
+			HostID: "test",
+			Metric: maprobe.Metric{
+				Name:      "custom.test.test.ok",
+				Value:     1,
+				Timestamp: time.Unix(1523261168, 0),
+			},
 		},
 	},
 	{
 		maprobe.HostMetric{
-			HostID:    "test",
-			Name:      "test.test.ok",
-			Value:     1,
-			Timestamp: time.Unix(1523261168, 0),
+			HostID: "test",
+			Metric: maprobe.Metric{
+				Name:      "test.test.ok",
+				Value:     1,
+				Timestamp: time.Unix(1523261168, 0),
+			},
 		},
 	},
 	{
 		maprobe.HostMetric{
-			HostID:    "test",
-			Name:      "test.envfoo.ok",
-			Value:     1,
-			Timestamp: time.Unix(1523261168, 0),
+			HostID: "test",
+			Metric: maprobe.Metric{
+				Name:      "test.envfoo.ok",
+				Value:     1,
+				Timestamp: time.Unix(1523261168, 0),
+			},
 		},
 	},
 	{
 		maprobe.HostMetric{
-			HostID:    "test",
-			Name:      "test.foofoo.ok",
-			Value:     1,
-			Timestamp: time.Unix(1523261168, 0),
+			HostID: "test",
+			Metric: maprobe.Metric{
+				Name:      "test.foofoo.ok",
+				Value:     1,
+				Timestamp: time.Unix(1523261168, 0),
+			},
 		},
 	},
 	{
 		maprobe.HostMetric{
-			HostID:    "test",
-			Name:      "test.barbar.ok",
-			Value:     1,
-			Timestamp: time.Unix(1523261168, 0),
+			HostID: "test",
+			Metric: maprobe.Metric{
+				Name:      "test.barbar.ok",
+				Value:     1,
+				Timestamp: time.Unix(1523261168, 0),
+			},
 		},
 	},
 }

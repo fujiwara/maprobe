@@ -283,9 +283,8 @@ func parseMetricLine(b string) (HostMetric, error) {
 		return HostMetric{}, errors.New("invalid metric format. insufficient columns")
 	}
 	name, value, timestamp := cols[0], cols[1], cols[2]
-	m := HostMetric{
-		Name: name,
-	}
+	m := HostMetric{}
+	m.Name = name
 
 	if v, err := strconv.ParseFloat(value, 64); err != nil {
 		return m, fmt.Errorf("invalid metric value: %s", value)
