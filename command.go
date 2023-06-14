@@ -133,7 +133,8 @@ func (p *CommandProbe) TempDir() string {
 	return dir
 }
 
-func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
+func (p *CommandProbe) Run(_ context.Context) (ms HostMetrics, err error) {
+	// Run() should not be canceled by parent context.
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
 
@@ -146,12 +147,8 @@ func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	default:
 		cmd = exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
 	}
-	for _, env := range os.Environ() {
-		cmd.Env = append(cmd.Env, env)
-	}
-	for _, env := range p.env {
-		cmd.Env = append(cmd.Env, env)
-	}
+	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(cmd.Env, p.env...)
 	cmd.Env = append(cmd.Env, "TMPDIR="+p.TempDir())
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()

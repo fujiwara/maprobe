@@ -11,7 +11,7 @@ import (
 )
 
 var commandProbesExpect = []maprobe.HostMetrics{
-	maprobe.HostMetrics{
+	{
 		maprobe.HostMetric{
 			HostID:    "test",
 			Name:      "custom.test.test.ok",
@@ -19,7 +19,7 @@ var commandProbesExpect = []maprobe.HostMetrics{
 			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
-	maprobe.HostMetrics{
+	{
 		maprobe.HostMetric{
 			HostID:    "test",
 			Name:      "test.test.ok",
@@ -27,7 +27,7 @@ var commandProbesExpect = []maprobe.HostMetrics{
 			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
-	maprobe.HostMetrics{
+	{
 		maprobe.HostMetric{
 			HostID:    "test",
 			Name:      "test.envfoo.ok",
@@ -35,7 +35,7 @@ var commandProbesExpect = []maprobe.HostMetrics{
 			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
-	maprobe.HostMetrics{
+	{
 		maprobe.HostMetric{
 			HostID:    "test",
 			Name:      "test.foofoo.ok",
@@ -43,7 +43,7 @@ var commandProbesExpect = []maprobe.HostMetrics{
 			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
-	maprobe.HostMetrics{
+	{
 		maprobe.HostMetric{
 			HostID:    "test",
 			Name:      "test.barbar.ok",

@@ -97,7 +97,7 @@ func expandCacheKey(src string, env map[string]string) string {
 func expandPlaceHolder(src string, host *mackerel.Host, env map[string]string) (string, error) {
 	var err error
 
-	if strings.Index(src, "{{") == -1 {
+	if !strings.Contains(src, "{{") {
 		// no need to expand
 		return src, nil
 	}
