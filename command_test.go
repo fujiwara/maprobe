@@ -61,6 +61,9 @@ func TestCommand(t *testing.T) {
 	}
 	for i, p := range c.Probes {
 		probe, err := p.Command.GenerateProbe(&mackerel.Host{ID: "test"}, nil)
+		if err != nil {
+			t.Error(err)
+		}
 		ms, err := probe.Run(context.Background())
 		if err != nil {
 			t.Error(err)
