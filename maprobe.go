@@ -79,7 +79,11 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		var wg2 sync.WaitGroup
 		for _, pd := range conf.Probes {
 			wg2.Add(1)
-			go runProbes(ctx, pd, client, hch, &wg2)
+			if pd.IsServiceMetric {
+				go runServiceProbes(ctx, pd, client, sch, &wg2)
+			} else {
+				go runHostProbes(ctx, pd, client, hch, &wg2)
+			}
 		}
 		for _, ag := range conf.Aggregates {
 			wg2.Add(1)
@@ -111,7 +115,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	}
 }
 
-func runProbes(ctx context.Context, pd *ProbeDefinition, client *Client, ch chan HostMetric, wg *sync.WaitGroup) {
+func runHostProbes(ctx context.Context, pd *ProbeDefinition, client *Client, ch chan HostMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Printf(
 		"[debug] probes finding hosts service:%s roles:%s statuses:%v",
@@ -157,12 +161,33 @@ func runProbes(ctx context.Context, pd *ProbeDefinition, client *Client, ch chan
 					log.Printf("[warn] probe failed. %s host id:%s name:%s probe:%s", err, host.ID, host.Name, probe)
 				}
 				for _, m := range metrics {
-					ch <- m
+					ch <- m.HostMetric(host.ID)
 				}
 			}
 		}(host)
 	}
 	wg2.Wait()
+}
+
+func runServiceProbes(ctx context.Context, pd *ProbeDefinition, client *Client, ch chan ServiceMetric, wg *sync.WaitGroup) {
+	defer wg.Done()
+	serviceName := pd.Service.String()
+	log.Printf(
+		"[debug] probes for service metric service:%s",
+		serviceName,
+	)
+	lock()
+	defer unlock()
+	for _, probe := range pd.GenerateProbes(nil, client.mackerel) {
+		log.Printf("[debug] probing service:%s probe:%s", serviceName, probe)
+		metrics, err := probe.Run(ctx)
+		if err != nil {
+			log.Printf("[warn] probe failed. %s service:%s probe:%s", err, serviceName, probe)
+		}
+		for _, m := range metrics {
+			ch <- m.ServiceMetric(serviceName)
+		}
+	}
 }
 
 func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client, ch chan ServiceMetric, wg *sync.WaitGroup) {

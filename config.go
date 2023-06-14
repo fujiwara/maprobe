@@ -65,10 +65,21 @@ type ProbeDefinition struct {
 	Roles    []exString `yaml:"roles"`
 	Statuses []exString `yaml:"statuses"`
 
+	IsServiceMetric bool `yaml:"service_metric"`
+
 	Ping    *PingProbeConfig    `yaml:"ping"`
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
 	HTTP    *HTTPProbeConfig    `yaml:"http"`
 	Command *CommandProbeConfig `yaml:"command"`
+}
+
+func (pd *ProbeDefinition) Validate() error {
+	if pd.IsServiceMetric {
+		if pd.Role.Value != "" || len(pd.Roles) > 0 || len(pd.Statuses) > 0 {
+			return errors.Errorf("probe for service metric cannot have role or roles or statuses")
+		}
+	}
+	return nil
 }
 
 func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.Client) []Probe {
@@ -142,6 +153,9 @@ func (c *Config) initialize() error {
 			if err := pd.Command.initialize(); err != nil {
 				return err
 			}
+		}
+		if err := pd.Validate(); err != nil {
+			return err
 		}
 	}
 	for _, ad := range c.Aggregates {

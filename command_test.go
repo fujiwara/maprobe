@@ -2,11 +2,11 @@ package maprobe_test
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/fujiwara/maprobe"
+	"github.com/google/go-cmp/cmp"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
@@ -79,8 +79,8 @@ func TestCommand(t *testing.T) {
 			t.Error(err)
 		}
 		for j, m := range ms {
-			if !reflect.DeepEqual(m, commandProbesExpect[i][j]) {
-				t.Errorf("unexpected response %v expected %v", m, commandProbesExpect[i][j])
+			if d := cmp.Diff(m.String(), commandProbesExpect[i][j].String()); d != "" {
+				t.Errorf("unexpected response %s", d)
 			}
 		}
 		t.Log(ms.String())

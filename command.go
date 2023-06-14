@@ -133,7 +133,7 @@ func (p *CommandProbe) TempDir() string {
 	return dir
 }
 
-func (p *CommandProbe) Run(_ context.Context) (ms HostMetrics, err error) {
+func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	// Run() should not be canceled by parent context.
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
@@ -168,7 +168,6 @@ func (p *CommandProbe) Run(_ context.Context) (ms HostMetrics, err error) {
 			log.Println("[warn]", err)
 			continue
 		}
-		m.HostID = p.hostID
 		if p.GraphDefs {
 			m.Name = CustomPrefix + m.Name
 		}
@@ -277,13 +276,13 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 	return &out, nil
 }
 
-func parseMetricLine(b string) (HostMetric, error) {
+func parseMetricLine(b string) (Metric, error) {
 	cols := strings.SplitN(b, "\t", 3)
 	if len(cols) < 3 {
-		return HostMetric{}, errors.New("invalid metric format. insufficient columns")
+		return Metric{}, errors.New("invalid metric format. insufficient columns")
 	}
 	name, value, timestamp := cols[0], cols[1], cols[2]
-	m := HostMetric{}
+	m := Metric{}
 	m.Name = name
 
 	if v, err := strconv.ParseFloat(value, 64); err != nil {
