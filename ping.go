@@ -27,7 +27,6 @@ type PingProbeConfig struct {
 
 func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &PingProbe{
-		hostID:          host.ID,
 		metricKeyPrefix: pc.MetricKeyPrefix,
 		Count:           pc.Count,
 		Timeout:         pc.Timeout,
@@ -54,16 +53,11 @@ func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 }
 
 type PingProbe struct {
-	hostID          string
 	metricKeyPrefix string
 
 	Address string
 	Count   int
 	Timeout time.Duration
-}
-
-func (p *PingProbe) HostID() string {
-	return p.hostID
 }
 
 func (p *PingProbe) MetricName(name string) string {

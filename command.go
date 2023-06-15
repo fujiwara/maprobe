@@ -62,7 +62,6 @@ func (pc *CommandProbeConfig) initialize() error {
 
 func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackerel.Client) (Probe, error) {
 	p := &CommandProbe{
-		hostID:    host.ID,
 		Timeout:   pc.Timeout,
 		GraphDefs: pc.GraphDefs,
 		Command:   make([]string, len(pc.command)),
@@ -97,16 +96,11 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 }
 
 type CommandProbe struct {
-	hostID string
-	env    []string
+	env []string
 
 	Command   []string
 	Timeout   time.Duration
 	GraphDefs bool
-}
-
-func (p *CommandProbe) HostID() string {
-	return p.hostID
 }
 
 func (p *CommandProbe) MetricName(name string) string {
@@ -119,7 +113,7 @@ func (p *CommandProbe) String() string {
 }
 
 func (p *CommandProbe) TempDir() string {
-	dir := filepath.Join(os.TempDir(), "maprobe_host_id_"+p.hostID)
+	dir := filepath.Join(os.TempDir(), fmt.Sprintf("maprobe_command_%x", p))
 	err := os.Mkdir(dir, 0700)
 	if err != nil {
 		if os.IsExist(err) {
@@ -237,14 +231,14 @@ func (p *CommandProbe) PostGraphDefs(client *mackerel.Client, pc *CommandProbeCo
 		// When failed to post to Mackerel, graphDefsPosted shouldnot be stored.
 		return errors.Wrap(err, "could not create graph defs")
 	}
-	log.Printf("[info] success to create graph defs for %s %v", p.hostID, p.Command)
+	log.Printf("[info] success to create graph defs for %v", p.Command)
 
 	graphDefsPosted.Store(pc, struct{}{})
 	return nil
 }
 
 func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
-	log.Printf("[trace] Get graph defs for %s %v", p.hostID, p.Command)
+	log.Printf("[trace] Get graph defs for %v", p.Command)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

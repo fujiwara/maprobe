@@ -15,7 +15,6 @@ import (
 
 type Probe interface {
 	Run(ctx context.Context) (Metrics, error)
-	HostID() string
 	MetricName(string) string
 }
 

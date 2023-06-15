@@ -36,7 +36,6 @@ type TCPProbeConfig struct {
 
 func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &TCPProbe{
-		hostID:             host.ID,
 		metricKeyPrefix:    pc.MetricKeyPrefix,
 		Timeout:            pc.Timeout,
 		MaxBytes:           pc.MaxBytes,
@@ -86,7 +85,6 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 }
 
 type TCPProbe struct {
-	hostID          string
 	metricKeyPrefix string
 
 	Host               string
@@ -98,10 +96,6 @@ type TCPProbe struct {
 	Timeout            time.Duration
 	TLS                bool
 	NoCheckCertificate bool
-}
-
-func (p *TCPProbe) HostID() string {
-	return p.hostID
 }
 
 func (p *TCPProbe) MetricName(name string) string {
