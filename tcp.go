@@ -107,12 +107,12 @@ func (p *TCPProbe) String() string {
 	return string(b)
 }
 
-func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
+func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {
 		log.Println("[debug] defer", ok)
-		elapsed := time.Now().Sub(start)
+		elapsed := time.Since(start)
 		ms = append(ms, newMetric(p, "elapsed.seconds", elapsed.Seconds()))
 		if ok {
 			ms = append(ms, newMetric(p, "check.ok", 1))
@@ -128,7 +128,7 @@ func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	addr := net.JoinHostPort(p.Host, p.Port)
 
 	log.Println("[debug] dialing", addr)
-	conn, err := dialTCP(addr, p.TLS, p.NoCheckCertificate, p.Timeout)
+	conn, err := dialTCP(ctx, addr, p.TLS, p.NoCheckCertificate, p.Timeout)
 	if err != nil {
 		return ms, errors.Wrap(err, "connect failed")
 	}
@@ -165,12 +165,16 @@ func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	return
 }
 
-func dialTCP(address string, useTLS bool, noCheckCertificate bool, timeout time.Duration) (net.Conn, error) {
+func dialTCP(ctx context.Context, address string, useTLS bool, noCheckCertificate bool, timeout time.Duration) (net.Conn, error) {
 	d := &net.Dialer{Timeout: timeout}
 	if useTLS {
-		return tls.DialWithDialer(d, "tcp", address, &tls.Config{
-			InsecureSkipVerify: noCheckCertificate,
-		})
+		td := &tls.Dialer{
+			NetDialer: d,
+			Config: &tls.Config{
+				InsecureSkipVerify: noCheckCertificate,
+			},
+		}
+		return td.DialContext(ctx, "tcp", address)
 	}
-	return d.Dial("tcp", address)
+	return d.DialContext(ctx, "tcp", address)
 }
