@@ -55,22 +55,26 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer close(hch)
 	sch := make(chan ServiceMetric, PostMetricBufferLength*10)
 	defer close(sch)
+	ach := make(chan ServiceMetric, PostMetricBufferLength*10)
+	defer close(ach)
 
 	if len(conf.Probes) > 0 {
-		wg.Add(1)
+		wg.Add(2)
 		if conf.PostProbedMetrics {
 			go postHostMetricWorker(wg, client, hch)
+			go postServiceMetricWorker(wg, client, sch)
 		} else {
 			go dumpHostMetricWorker(wg, hch)
+			go dumpServiceMetricWorker(wg, sch)
 		}
 	}
 
 	if len(conf.Aggregates) > 0 {
 		wg.Add(1)
 		if conf.PostAggregatedMetrics {
-			go postServiceMetricWorker(wg, client, sch)
+			go postServiceMetricWorker(wg, client, ach)
 		} else {
-			go dumpServiceMetricWorker(wg, sch)
+			go dumpServiceMetricWorker(wg, ach)
 		}
 	}
 
@@ -83,7 +87,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		}
 		for _, ag := range conf.Aggregates {
 			wg2.Add(1)
-			go runAggregates(ctx, ag, client, sch, &wg2)
+			go runAggregates(ctx, ag, client, ach, &wg2)
 		}
 		wg2.Wait()
 		if once {

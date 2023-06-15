@@ -137,7 +137,7 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []
 		spawnInterval = time.Second
 	}
 
-	var wg *sync.WaitGroup
+	wg := &sync.WaitGroup{}
 	for _, host := range hosts {
 		time.Sleep(spawnInterval)
 		log.Printf("[debug] probes preparing host id:%s name:%s", host.ID, host.Name)
