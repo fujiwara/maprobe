@@ -10,55 +10,47 @@ import (
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
-var commandProbesExpect = []maprobe.HostMetrics{
+var commandProbesExpect = [][]maprobe.Metric{
 	{
-		maprobe.HostMetric{
-			HostID: "test",
-			Metric: maprobe.Metric{
-				Name:      "custom.test.test.ok",
-				Value:     1,
-				Timestamp: time.Unix(1523261168, 0),
-			},
+		{
+			Name:      "custom.test.test.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
 	{
-		maprobe.HostMetric{
-			HostID: "test",
-			Metric: maprobe.Metric{
-				Name:      "test.test.ok",
-				Value:     1,
-				Timestamp: time.Unix(1523261168, 0),
-			},
+		{
+			Name:      "test.test.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
 	{
-		maprobe.HostMetric{
-			HostID: "test",
-			Metric: maprobe.Metric{
-				Name:      "test.envfoo.ok",
-				Value:     1,
-				Timestamp: time.Unix(1523261168, 0),
-			},
+		{
+			Name:      "test.envfoo.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
 	{
-		maprobe.HostMetric{
-			HostID: "test",
-			Metric: maprobe.Metric{
-				Name:      "test.foofoo.ok",
-				Value:     1,
-				Timestamp: time.Unix(1523261168, 0),
-			},
+		{
+			Name:      "test.foofoo.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
 	{
-		maprobe.HostMetric{
-			HostID: "test",
-			Metric: maprobe.Metric{
-				Name:      "test.barbar.ok",
-				Value:     1,
-				Timestamp: time.Unix(1523261168, 0),
-			},
+		{
+			Name:      "test.barbar.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
+		},
+	},
+	{
+		{
+			Name:      "test.myservice.ok",
+			Value:     1,
+			Timestamp: time.Unix(1523261168, 0),
 		},
 	},
 }

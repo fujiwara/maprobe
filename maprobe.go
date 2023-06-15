@@ -79,11 +79,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		var wg2 sync.WaitGroup
 		for _, pd := range conf.Probes {
 			wg2.Add(1)
-			if pd.IsServiceMetric {
-				go runServiceProbes(ctx, pd, client, sch, &wg2)
-			} else {
-				go runHostProbes(ctx, pd, client, hch, &wg2)
-			}
+			go pd.RunProbes(ctx, client, hch, sch, &wg2)
 		}
 		for _, ag := range conf.Aggregates {
 			wg2.Add(1)
@@ -111,85 +107,6 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			confDigest = digest
 			log.Println("[info] config reloaded")
 			log.Println("[debug]", conf)
-		}
-	}
-}
-
-func runHostProbes(ctx context.Context, pd *ProbeDefinition, client *Client, ch chan HostMetric, wg *sync.WaitGroup) {
-	defer wg.Done()
-	log.Printf(
-		"[debug] probes finding hosts service:%s roles:%s statuses:%v",
-		pd.Service,
-		pd.Roles,
-		pd.Statuses,
-	)
-	roles := exStrings(pd.Roles)
-	statuses := exStrings(pd.Statuses)
-
-	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
-		Service:  pd.Service.String(),
-		Roles:    roles,
-		Statuses: statuses,
-	})
-	if err != nil {
-		log.Println("[error] probes find host failed", err)
-		return
-	}
-	log.Printf("[debug] probes %d hosts found", len(hosts))
-	if len(hosts) == 0 {
-		return
-	}
-
-	spawnInterval := time.Duration(int64(ProbeInterval) / int64(len(hosts)) / 2)
-	if spawnInterval > time.Second {
-		spawnInterval = time.Second
-	}
-
-	var wg2 sync.WaitGroup
-	for _, host := range hosts {
-		time.Sleep(spawnInterval)
-		log.Printf("[debug] probes preparing host id:%s name:%s", host.ID, host.Name)
-		wg2.Add(1)
-		go func(host *mackerel.Host) {
-			lock()
-			defer unlock()
-			defer wg2.Done()
-			for _, probe := range pd.GenerateProbes(host, client.mackerel) {
-				log.Printf("[debug] probing host id:%s name:%s probe:%s", host.ID, host.Name, probe)
-				metrics, err := probe.Run(ctx)
-				if err != nil {
-					log.Printf("[warn] probe failed. %s host id:%s name:%s probe:%s", err, host.ID, host.Name, probe)
-				}
-				for _, m := range metrics {
-					ch <- m.HostMetric(host.ID)
-				}
-			}
-		}(host)
-	}
-	wg2.Wait()
-}
-
-func runServiceProbes(ctx context.Context, pd *ProbeDefinition, client *Client, ch chan ServiceMetric, wg *sync.WaitGroup) {
-	defer wg.Done()
-	serviceName := pd.Service.String()
-	log.Printf(
-		"[debug] probes for service metric service:%s",
-		serviceName,
-	)
-	lock()
-	defer unlock()
-	host := &mackerel.Host{
-		Name: serviceName,
-		ID:   serviceName,
-	}
-	for _, probe := range pd.GenerateProbes(host, client.mackerel) {
-		log.Printf("[debug] probing service:%s probe:%s", serviceName, probe)
-		metrics, err := probe.Run(ctx)
-		if err != nil {
-			log.Printf("[warn] probe failed. %s service:%s probe:%s", err, serviceName, probe)
-		}
-		for _, m := range metrics {
-			ch <- m.ServiceMetric(serviceName)
 		}
 	}
 }
