@@ -178,7 +178,11 @@ func runServiceProbes(ctx context.Context, pd *ProbeDefinition, client *Client, 
 	)
 	lock()
 	defer unlock()
-	for _, probe := range pd.GenerateProbes(nil, client.mackerel) {
+	host := &mackerel.Host{
+		Name: serviceName,
+		ID:   serviceName,
+	}
+	for _, probe := range pd.GenerateProbes(host, client.mackerel) {
 		log.Printf("[debug] probing service:%s probe:%s", serviceName, probe)
 		metrics, err := probe.Run(ctx)
 		if err != nil {

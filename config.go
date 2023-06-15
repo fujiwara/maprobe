@@ -88,7 +88,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if pingConfig := pd.Ping; pingConfig != nil {
 		p, err := pingConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate ping probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate ping probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -97,7 +97,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if tcpConfig := pd.TCP; tcpConfig != nil {
 		p, err := tcpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate tcp probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate tcp probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -106,7 +106,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if httpConfig := pd.HTTP; httpConfig != nil {
 		p, err := httpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate http probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate http probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -115,7 +115,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if commandConfig := pd.Command; commandConfig != nil {
 		p, err := commandConfig.GenerateProbe(host, client)
 		if err != nil {
-			log.Printf("[error] cannot generate command probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate command probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
