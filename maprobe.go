@@ -201,13 +201,12 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client,
 				ag.Service, output.Name,
 				timestamp,
 			)
-			m := ServiceMetric{
-				Service: ag.Service.String(),
+			m := Metric{
+				Name:      output.Name.String(),
+				Value:     value,
+				Timestamp: time.Unix(timestamp, 0),
 			}
-			m.Name = output.Name.String()
-			m.Value = value
-			m.Timestamp = time.Unix(timestamp, 0)
-			ch <- m
+			ch <- m.ServiceMetric(ag.Service.String())
 		}
 	}
 }
