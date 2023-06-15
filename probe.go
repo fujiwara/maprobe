@@ -18,7 +18,7 @@ type Probe interface {
 	MetricName(string) string
 }
 
-func newMetric[T Probe](p T, name string, value float64) Metric {
+func newMetric(p Probe, name string, value float64) Metric {
 	return Metric{
 		Name:      p.MetricName(name),
 		Value:     value,
