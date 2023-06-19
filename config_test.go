@@ -12,21 +12,21 @@ import (
 var testConfigExpected = &Config{
 	PostProbedMetrics: false,
 	Probes: []*ProbeDefinition{
-		&ProbeDefinition{
+		{
 			Service:  exString{"prod"},
 			Role:     exString{"EC2"},
-			Roles:    []exString{exString{"EC2"}},
-			Statuses: []exString{exString{"working"}, exString{"standby"}},
+			Roles:    []exString{{"EC2"}},
+			Statuses: []exString{{"working"}, {"standby"}},
 			Ping: &PingProbeConfig{
 				Address: "{{ .ipAddresses.eth0 }}",
 				Count:   3,
 				Timeout: 5 * time.Second,
 			},
 		},
-		&ProbeDefinition{
+		{
 			Service: exString{"prod"},
 			Role:    exString{"prod-NLB"},
-			Roles:   []exString{exString{"prod-NLB"}},
+			Roles:   []exString{{"prod-NLB"}},
 			TCP: &TCPProbeConfig{
 				Host:          "{{ .customIdentifier }}",
 				Port:          "11211",
@@ -35,10 +35,10 @@ var testConfigExpected = &Config{
 				Timeout:       3 * time.Second,
 			},
 		},
-		&ProbeDefinition{
+		{
 			Service: exString{"prod"},
 			Role:    exString{"ALB"},
-			Roles:   []exString{exString{"ALB"}},
+			Roles:   []exString{{"ALB"}},
 			HTTP: &HTTPProbeConfig{
 				URL:    "{{ .metadata.probe.url }}?service={{ env `SERVICE` }}",
 				Method: "POST",
@@ -52,35 +52,43 @@ var testConfigExpected = &Config{
 				NoCheckCertificate: true,
 			},
 		},
+		{
+			Service:         exString{"prod"},
+			IsServiceMetric: true,
+			HTTP: &HTTPProbeConfig{
+				URL:    "{{ .metadata.probe.url }}",
+				Method: "GET",
+			},
+		},
 	},
 	PostAggregatedMetrics: false,
 	Aggregates: []*AggregateDefinition{
-		&AggregateDefinition{
+		{
 			Service: exString{"prod"},
 			Role:    exString{"web"},
-			Roles:   []exString{exString{"web"}},
+			Roles:   []exString{{"web"}},
 			Metrics: []*MetricConfig{
-				&MetricConfig{
+				{
 					Name: exString{"custom.nginx.requests.requests"},
 					Outputs: []*OutputConfig{
-						&OutputConfig{
+						{
 							Func: exString{"sum"},
 							Name: exString{"custom.nginx.requests.sum_requests"},
 						},
-						&OutputConfig{
+						{
 							Func: exString{"avg"},
 							Name: exString{"custom.nginx.requests.avg_requests"},
 						},
 					},
 				},
-				&MetricConfig{
+				{
 					Name: exString{"custom.nginx.connections.connections"},
 					Outputs: []*OutputConfig{
-						&OutputConfig{
+						{
 							Func: exString{"avg"},
 							Name: exString{"custom.nginx.connections.avg_connections"},
 						},
-						&OutputConfig{
+						{
 							Func: exString{"median"},
 							Name: exString{"custom.nginx.connections.median_connections"},
 						},
