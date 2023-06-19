@@ -124,7 +124,30 @@ probes:
         - "mackerel-plugin-redis"
         - "-host={{ .Host.IPAddress.eth0 }}"
         - "-tempfile=/tmp/redis-{{ .Host.ID }}"
+
+  - service: production
+    service_metric: true # post metrics as service metrics
+    http:
+      url: 'https://example.net/api/healthcheck'
+      post: GET
+      headers:
+        Content-Type: application/json
+      body: '{"hello":"world"}'
+      expect_pattern: 'ok'
 ```
+
+#### Service metrics support in probes
+
+`service_metric: true` in probe configuration enables to post metrics as service metrics.
+
+```yaml
+probes:
+  - service: production
+    service_metric: true # post metrics as service metrics
+    # ...
+```
+
+In this case, `.Host` is not available in probe configuration.
 
 ### Backup metrics using Amazon Kinesis Firehose
 

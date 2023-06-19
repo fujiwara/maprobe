@@ -31,6 +31,12 @@ probes:
       expect_pattern: "ok"
       no_check_certificate: true
 
+  - service: '{{ must_env "SERVICE" }}'
+    service_metric: true
+    http:
+      url: "{{ .metadata.probe.url }}"
+      method: GET
+
 aggregates:
   - service: '{{ env "SERVICE" }}'
     role: web

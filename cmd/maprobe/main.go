@@ -63,6 +63,7 @@ var (
 	tcpExpectPattern      = tcp.Flag("expect", "Regexp pattern to expect in server response").Short('e').String()
 	tcpNoCheckCertificate = tcp.Flag("no-check-certificate", "Do not check certificate").Short('k').Bool()
 	tcpHostID             = tcp.Flag("host-id", "Mackerel host ID").Short('i').String()
+	tcpTLS                = tcp.Flag("tls", "Use TLS").Bool()
 
 	http                   = app.Command("http", "Run HTTP probe")
 	httpURL                = http.Arg("url", "URL").Required().String()
@@ -167,6 +168,7 @@ func main() {
 			Quit:               *tcpQuit,
 			ExpectPattern:      *tcpExpectPattern,
 			NoCheckCertificate: *tcpNoCheckCertificate,
+			TLS:                *tcpTLS,
 		})
 	case "http":
 		err = runProbe(ctx, *httpHostID, &maprobe.HTTPProbeConfig{

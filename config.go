@@ -65,10 +65,21 @@ type ProbeDefinition struct {
 	Roles    []exString `yaml:"roles"`
 	Statuses []exString `yaml:"statuses"`
 
+	IsServiceMetric bool `yaml:"service_metric"`
+
 	Ping    *PingProbeConfig    `yaml:"ping"`
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
 	HTTP    *HTTPProbeConfig    `yaml:"http"`
 	Command *CommandProbeConfig `yaml:"command"`
+}
+
+func (pd *ProbeDefinition) Validate() error {
+	if pd.IsServiceMetric {
+		if pd.Role.Value != "" || len(pd.Roles) > 0 || len(pd.Statuses) > 0 {
+			return errors.Errorf("probe for service metric cannot have role or roles or statuses")
+		}
+	}
+	return nil
 }
 
 func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.Client) []Probe {
@@ -77,7 +88,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if pingConfig := pd.Ping; pingConfig != nil {
 		p, err := pingConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate ping probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate ping probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -86,7 +97,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if tcpConfig := pd.TCP; tcpConfig != nil {
 		p, err := tcpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate tcp probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate tcp probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -95,7 +106,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if httpConfig := pd.HTTP; httpConfig != nil {
 		p, err := httpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate http probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate http probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -104,7 +115,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if commandConfig := pd.Command; commandConfig != nil {
 		p, err := commandConfig.GenerateProbe(host, client)
 		if err != nil {
-			log.Printf("[error] cannot generate command probe. HostID:%s Name:%s %s", host.ID, host.Name, err)
+			log.Printf("[error] cannot generate command probe. ID:%s Name:%s %s", host.ID, host.Name, err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -142,6 +153,9 @@ func (c *Config) initialize() error {
 			if err := pd.Command.initialize(); err != nil {
 				return err
 			}
+		}
+		if err := pd.Validate(); err != nil {
+			return err
 		}
 	}
 	for _, ad := range c.Aggregates {

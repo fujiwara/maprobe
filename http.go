@@ -112,11 +112,11 @@ func (p *HTTPProbe) String() string {
 	return string(b)
 }
 
-func (p *HTTPProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
+func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {
-		elapsed := time.Now().Sub(start)
+		elapsed := time.Since(start)
 		ms = append(ms, newMetric(p, "response_time.seconds", elapsed.Seconds()))
 		if ok {
 			ms = append(ms, newMetric(p, "check.ok", 1))
@@ -129,7 +129,7 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
 
-	req, err := http.NewRequest(p.Method, p.URL, strings.NewReader(p.Body))
+	req, err := http.NewRequestWithContext(ctx, p.Method, p.URL, strings.NewReader(p.Body))
 	if err != nil {
 		log.Println("[warn] invalid HTTP request", err)
 		return

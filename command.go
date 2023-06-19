@@ -62,7 +62,6 @@ func (pc *CommandProbeConfig) initialize() error {
 
 func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackerel.Client) (Probe, error) {
 	p := &CommandProbe{
-		hostID:    host.ID,
 		Timeout:   pc.Timeout,
 		GraphDefs: pc.GraphDefs,
 		Command:   make([]string, len(pc.command)),
@@ -97,16 +96,11 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 }
 
 type CommandProbe struct {
-	hostID string
-	env    []string
+	env []string
 
 	Command   []string
 	Timeout   time.Duration
 	GraphDefs bool
-}
-
-func (p *CommandProbe) HostID() string {
-	return p.hostID
 }
 
 func (p *CommandProbe) MetricName(name string) string {
@@ -119,7 +113,7 @@ func (p *CommandProbe) String() string {
 }
 
 func (p *CommandProbe) TempDir() string {
-	dir := filepath.Join(os.TempDir(), "maprobe_host_id_"+p.hostID)
+	dir := filepath.Join(os.TempDir(), fmt.Sprintf("maprobe_command_%x", p))
 	err := os.Mkdir(dir, 0700)
 	if err != nil {
 		if os.IsExist(err) {
@@ -133,7 +127,8 @@ func (p *CommandProbe) TempDir() string {
 	return dir
 }
 
-func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
+func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
+	// Run() should not be canceled by parent context.
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
 	defer cancel()
 
@@ -146,12 +141,8 @@ func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 	default:
 		cmd = exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
 	}
-	for _, env := range os.Environ() {
-		cmd.Env = append(cmd.Env, env)
-	}
-	for _, env := range p.env {
-		cmd.Env = append(cmd.Env, env)
-	}
+	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(cmd.Env, p.env...)
 	cmd.Env = append(cmd.Env, "TMPDIR="+p.TempDir())
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
@@ -171,7 +162,6 @@ func (p *CommandProbe) Run(ctx context.Context) (ms HostMetrics, err error) {
 			log.Println("[warn]", err)
 			continue
 		}
-		m.HostID = p.hostID
 		if p.GraphDefs {
 			m.Name = CustomPrefix + m.Name
 		}
@@ -241,14 +231,14 @@ func (p *CommandProbe) PostGraphDefs(client *mackerel.Client, pc *CommandProbeCo
 		// When failed to post to Mackerel, graphDefsPosted shouldnot be stored.
 		return errors.Wrap(err, "could not create graph defs")
 	}
-	log.Printf("[info] success to create graph defs for %s %v", p.hostID, p.Command)
+	log.Printf("[info] success to create graph defs for %v", p.Command)
 
 	graphDefsPosted.Store(pc, struct{}{})
 	return nil
 }
 
 func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
-	log.Printf("[trace] Get graph defs for %s %v", p.hostID, p.Command)
+	log.Printf("[trace] Get graph defs for %v", p.Command)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -280,15 +270,14 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 	return &out, nil
 }
 
-func parseMetricLine(b string) (HostMetric, error) {
+func parseMetricLine(b string) (Metric, error) {
 	cols := strings.SplitN(b, "\t", 3)
 	if len(cols) < 3 {
-		return HostMetric{}, errors.New("invalid metric format. insufficient columns")
+		return Metric{}, errors.New("invalid metric format. insufficient columns")
 	}
 	name, value, timestamp := cols[0], cols[1], cols[2]
-	m := HostMetric{
-		Name: name,
-	}
+	m := Metric{}
+	m.Name = name
 
 	if v, err := strconv.ParseFloat(value, 64); err != nil {
 		return m, fmt.Errorf("invalid metric value: %s", value)
