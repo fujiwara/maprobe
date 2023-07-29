@@ -269,6 +269,7 @@ command:
     - "-option=foo"
   timeout: "5s"                      # Seconds of command timeout (default 15)
   graph_defs: true                   # Post graph definitions to Mackerel (default false)
+```
 
 Command probe handles command's output as host metric.
 
