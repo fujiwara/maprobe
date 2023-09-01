@@ -10,6 +10,10 @@ import (
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
+	otelattribute "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	otelmetricdata "go.opentelemetry.io/otel/sdk/metric/metricdata"
+	otelresource "go.opentelemetry.io/otel/sdk/resource"
 )
 
 var (
@@ -51,7 +55,10 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		client.mackerel.HTTPClient.Transport = &postFailureTransport{}
 	}
 
-	chs := NewChannels()
+	if conf.EnableOtel {
+		log.Println("[info] enable Otel feature!!!")
+	}
+	chs := NewChannels(conf.EnableOtel)
 	defer chs.Close()
 
 	if len(conf.Probes) > 0 {
@@ -59,9 +66,11 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		if conf.PostProbedMetrics {
 			go postHostMetricWorker(wg, client, chs)
 			go postServiceMetricWorker(wg, client, chs)
+			go postOtelMetricWorker(wg, client, chs)
 		} else {
 			go dumpHostMetricWorker(wg, chs)
 			go dumpServiceMetricWorker(wg, chs)
+			go dumpOtelMetricWorker(wg, chs)
 		}
 	}
 
@@ -297,12 +306,70 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 	}
 }
 
+func postOtelMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
+	ctx := context.TODO()
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		log.Println("[error] OTLP endpoint is not set. skip posting OTel metrics")
+		return
+	}
+	exporter, err := otlpmetricgrpc.New(ctx)
+	if err != nil {
+		log.Printf("[error] failed to create OpenTelemetry meter exporter: %v", err)
+		return
+	}
+	defer exporter.Shutdown(ctx)
+	attrs := otelresource.NewSchemaless(
+		otelattribute.String("service.name", "maprobe"),
+	)
+
+	log.Println("[info] starting postOtelMetricWorker")
+	defer wg.Done()
+	ticker := time.NewTicker(10 * time.Second)
+	mvs := make([]otelmetricdata.Metrics, 0, PostMetricBufferLength)
+	run := true
+	for run {
+		select {
+		case m, cont := <-chs.OtelMetrics:
+			if cont {
+				mvs = append(mvs, m.Otel())
+				log.Println("[debug][otel]", m.OtelString())
+				if len(mvs) < PostMetricBufferLength {
+					continue
+				}
+			} else {
+				log.Println("[info] shutting down postOtelMetricWorker")
+				run = false
+			}
+		case <-ticker.C:
+		}
+		if len(mvs) == 0 {
+			continue
+		}
+		log.Printf("[debug] posting %d otel metrics to %s", len(mvs), endpoint)
+		rms := &otelmetricdata.ResourceMetrics{
+			Resource: attrs,
+			ScopeMetrics: []otelmetricdata.ScopeMetrics{
+				{Metrics: mvs},
+			},
+		}
+		if err := exporter.Export(ctx, rms); err != nil {
+			log.Printf("[error] failed to export otel metrics: %v", err)
+			time.Sleep(mackerelRetryInterval)
+			continue
+		}
+		log.Printf("[debug] post otel metrics succeeded.")
+		// success. reset buffer
+		mvs = mvs[:0]
+	}
+}
+
 func dumpHostMetricWorker(wg *sync.WaitGroup, chs Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpHostMetricWorker")
 	for m := range chs.HostMetrics {
 		b, _ := json.Marshal(m.HostMetricValue())
-		log.Printf("[info] %s %s", m.HostID, b)
+		log.Printf("[info][host] %s %s", m.HostID, b)
 	}
 }
 
@@ -311,7 +378,18 @@ func dumpServiceMetricWorker(wg *sync.WaitGroup, chs Channels) {
 	log.Println("[info] starting dumpServiceMetricWorker")
 	for m := range chs.ServiceMetrics {
 		b, _ := json.Marshal(m.MetricValue())
-		log.Printf("[info] %s %s", m.Service, b)
+		log.Printf("[info][service] %s %s", m.Service, b)
+	}
+}
+
+func dumpOtelMetricWorker(wg *sync.WaitGroup, chs Channels) {
+	if chs.OtelMetrics == nil {
+		return
+	}
+	defer wg.Done()
+	log.Println("[info] starting dumpOtelMetricWorker")
+	for m := range chs.OtelMetrics {
+		log.Printf("[info][otel] %s", m.OtelString())
 	}
 }
 

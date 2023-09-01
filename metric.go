@@ -25,13 +25,18 @@ func (m Metric) Otel() otelmetricdata.Metrics {
 		Data: otelmetricdata.Gauge[float64]{
 			DataPoints: []otelmetricdata.DataPoint[float64]{
 				{
-					Attributes: m.Attribute.Otel(),
+					Attributes: *m.Attribute.Otel(),
 					Time:       m.Timestamp,
 					Value:      m.Value,
 				},
 			},
 		},
 	}
+}
+
+func (m Metric) OtelString() string {
+	// promhttp_metric_handler_requests_total{code="200"} 988
+	return fmt.Sprintf("%s{%s} %f", m.Name, m.Attribute, m.Value)
 }
 
 func (m Metric) String() string {
@@ -129,10 +134,15 @@ type Attribute struct {
 	HostID  string
 }
 
-func (a Attribute) Otel() otelattribute.Set {
-	return otelattribute.NewSet(
+func (a Attribute) Otel() *otelattribute.Set {
+	s := otelattribute.NewSet(
 		semconv.ServiceName(a.Service),
 		semconv.ServiceNamespace(a.Role),
 		semconv.HostID(a.HostID),
 	)
+	return &s
+}
+
+func (a Attribute) String() string {
+	return a.Otel().Encoded(otelattribute.DefaultEncoder())
 }

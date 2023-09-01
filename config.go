@@ -31,6 +31,8 @@ type Config struct {
 	ProbeOnly *bool `yaml:"probe_only"` // deprecated
 
 	Backup BackupConfig `yaml:"backup"`
+
+	EnableOtel bool `yaml:"enable_otel"`
 }
 
 type exString struct {

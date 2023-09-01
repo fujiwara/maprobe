@@ -100,6 +100,9 @@ func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, chs Ch
 		for _, m := range pd.RunServiceProbes(ctx, client) {
 			m.Attribute.Service = pd.Service.String()
 			chs.ServiceMetrics <- m
+			if chs.OtelMetrics != nil {
+				chs.OtelMetrics <- m.Metric
+			}
 		}
 	} else {
 		for _, m := range pd.RunHostProbes(ctx, client) {
@@ -107,6 +110,9 @@ func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, chs Ch
 			m.Attribute.Role = pd.Role.String()
 			m.Attribute.HostID = m.HostID
 			chs.HostMetrics <- m
+			if chs.OtelMetrics != nil {
+				chs.OtelMetrics <- m.Metric
+			}
 		}
 	}
 }

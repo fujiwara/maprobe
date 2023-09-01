@@ -7,13 +7,16 @@ type Channels struct {
 	OtelMetrics       chan Metric
 }
 
-func NewChannels() Channels {
-	return Channels{
+func NewChannels(enableOtel bool) Channels {
+	chs := Channels{
 		ServiceMetrics:    make(chan ServiceMetric, PostMetricBufferLength*10),
 		HostMetrics:       make(chan HostMetric, PostMetricBufferLength*10),
 		AggregatedMetrics: make(chan ServiceMetric, PostMetricBufferLength*10),
-		OtelMetrics:       make(chan Metric, PostMetricBufferLength*10),
 	}
+	if enableOtel {
+		chs.OtelMetrics = make(chan Metric, PostMetricBufferLength*10)
+	}
+	return chs
 }
 
 func (ch Channels) Close() {
