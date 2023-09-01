@@ -94,15 +94,19 @@ func expandPlaceHolder(src string, host *mackerel.Host, env map[string]string) (
 	return b.String(), err
 }
 
-func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, hch chan HostMetric, sch chan ServiceMetric, wg *sync.WaitGroup) {
+func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, chs Channels, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if pd.IsServiceMetric {
 		for _, m := range pd.RunServiceProbes(ctx, client) {
-			sch <- m
+			m.Attribute.Service = pd.Service.String()
+			chs.ServiceMetrics <- m
 		}
 	} else {
 		for _, m := range pd.RunHostProbes(ctx, client) {
-			hch <- m
+			m.Attribute.Service = pd.Service.String()
+			m.Attribute.Role = pd.Role.String()
+			m.Attribute.HostID = m.HostID
+			chs.HostMetrics <- m
 		}
 	}
 }

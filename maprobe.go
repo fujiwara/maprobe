@@ -51,30 +51,26 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		client.mackerel.HTTPClient.Transport = &postFailureTransport{}
 	}
 
-	hch := make(chan HostMetric, PostMetricBufferLength*10)
-	defer close(hch)
-	sch := make(chan ServiceMetric, PostMetricBufferLength*10)
-	defer close(sch)
-	ach := make(chan ServiceMetric, PostMetricBufferLength*10)
-	defer close(ach)
+	chs := NewChannels()
+	defer chs.Close()
 
 	if len(conf.Probes) > 0 {
 		wg.Add(2)
 		if conf.PostProbedMetrics {
-			go postHostMetricWorker(wg, client, hch)
-			go postServiceMetricWorker(wg, client, sch)
+			go postHostMetricWorker(wg, client, chs)
+			go postServiceMetricWorker(wg, client, chs)
 		} else {
-			go dumpHostMetricWorker(wg, hch)
-			go dumpServiceMetricWorker(wg, sch)
+			go dumpHostMetricWorker(wg, chs)
+			go dumpServiceMetricWorker(wg, chs)
 		}
 	}
 
 	if len(conf.Aggregates) > 0 {
 		wg.Add(1)
 		if conf.PostAggregatedMetrics {
-			go postServiceMetricWorker(wg, client, ach)
+			go postServiceMetricWorker(wg, client, chs)
 		} else {
-			go dumpServiceMetricWorker(wg, ach)
+			go dumpServiceMetricWorker(wg, chs)
 		}
 	}
 
@@ -83,11 +79,11 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		var wg2 sync.WaitGroup
 		for _, pd := range conf.Probes {
 			wg2.Add(1)
-			go pd.RunProbes(ctx, client, hch, sch, &wg2)
+			go pd.RunProbes(ctx, client, chs, &wg2)
 		}
 		for _, ag := range conf.Aggregates {
 			wg2.Add(1)
-			go runAggregates(ctx, ag, client, ach, &wg2)
+			go runAggregates(ctx, ag, client, chs, &wg2)
 		}
 		wg2.Wait()
 		if once {
@@ -115,7 +111,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	}
 }
 
-func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client, ch chan ServiceMetric, wg *sync.WaitGroup) {
+func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client, chs Channels, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	service := ag.Service.String()
@@ -210,12 +206,12 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client,
 				Value:     value,
 				Timestamp: time.Unix(timestamp, 0),
 			}
-			ch <- m.ServiceMetric(ag.Service.String())
+			chs.AggregatedMetrics <- m.ServiceMetric(ag.Service.String())
 		}
 	}
 }
 
-func postHostMetricWorker(wg *sync.WaitGroup, client *Client, ch chan HostMetric) {
+func postHostMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 	log.Println("[info] starting postHostMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
@@ -223,7 +219,7 @@ func postHostMetricWorker(wg *sync.WaitGroup, client *Client, ch chan HostMetric
 	run := true
 	for run {
 		select {
-		case m, cont := <-ch:
+		case m, cont := <-chs.HostMetrics:
 			if cont {
 				mvs = append(mvs, m.HostMetricValue())
 				if len(mvs) < PostMetricBufferLength {
@@ -252,7 +248,7 @@ func postHostMetricWorker(wg *sync.WaitGroup, client *Client, ch chan HostMetric
 	}
 }
 
-func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, ch chan ServiceMetric) {
+func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 	log.Println("[info] starting postServiceMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
@@ -260,7 +256,7 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, ch chan Service
 	run := true
 	for run {
 		select {
-		case m, cont := <-ch:
+		case m, cont := <-chs.ServiceMetrics:
 			if cont {
 				if math.IsNaN(m.Value) {
 					log.Printf(
@@ -301,19 +297,19 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, ch chan Service
 	}
 }
 
-func dumpHostMetricWorker(wg *sync.WaitGroup, ch chan HostMetric) {
+func dumpHostMetricWorker(wg *sync.WaitGroup, chs Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpHostMetricWorker")
-	for m := range ch {
+	for m := range chs.HostMetrics {
 		b, _ := json.Marshal(m.HostMetricValue())
 		log.Printf("[info] %s %s", m.HostID, b)
 	}
 }
 
-func dumpServiceMetricWorker(wg *sync.WaitGroup, ch chan ServiceMetric) {
+func dumpServiceMetricWorker(wg *sync.WaitGroup, chs Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpServiceMetricWorker")
-	for m := range ch {
+	for m := range chs.ServiceMetrics {
 		b, _ := json.Marshal(m.MetricValue())
 		log.Printf("[info] %s %s", m.Service, b)
 	}

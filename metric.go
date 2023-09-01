@@ -6,12 +6,32 @@ import (
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
+
+	otelattribute "go.opentelemetry.io/otel/attribute"
+	otelmetricdata "go.opentelemetry.io/otel/sdk/metric/metricdata"
+	semconv "go.opentelemetry.io/otel/semconv/v1.20.0"
 )
 
 type Metric struct {
 	Name      string
 	Value     float64
 	Timestamp time.Time
+	Attribute Attribute
+}
+
+func (m Metric) Otel() otelmetricdata.Metrics {
+	return otelmetricdata.Metrics{
+		Name: m.Name,
+		Data: otelmetricdata.Gauge[float64]{
+			DataPoints: []otelmetricdata.DataPoint[float64]{
+				{
+					Attributes: m.Attribute.Otel(),
+					Time:       m.Timestamp,
+					Value:      m.Value,
+				},
+			},
+		},
+	}
 }
 
 func (m Metric) String() string {
@@ -101,4 +121,18 @@ func (m ServiceMetric) MetricValue() *mackerel.MetricValue {
 
 func (m ServiceMetric) String() string {
 	return fmt.Sprintf("%s\t%f\t%d", m.Name, m.Value, m.Timestamp.Unix())
+}
+
+type Attribute struct {
+	Service string
+	Role    string
+	HostID  string
+}
+
+func (a Attribute) Otel() otelattribute.Set {
+	return otelattribute.NewSet(
+		semconv.ServiceName(a.Service),
+		semconv.ServiceNamespace(a.Role),
+		semconv.HostID(a.HostID),
+	)
 }
