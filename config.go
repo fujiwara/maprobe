@@ -88,6 +88,8 @@ type ProbeDefinition struct {
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
 	HTTP    *HTTPProbeConfig    `yaml:"http"`
 	Command *CommandProbeConfig `yaml:"command"`
+
+	Attributes map[string]string `yaml:"attributes"`
 }
 
 func (pd *ProbeDefinition) Validate() error {

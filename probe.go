@@ -98,14 +98,10 @@ func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, chs *C
 	defer wg.Done()
 	if pd.IsServiceMetric {
 		for _, m := range pd.RunServiceProbes(ctx, client) {
-			m.Attribute.Service = pd.Service.String()
 			chs.SendServiceMetric(m)
 		}
 	} else {
 		for _, m := range pd.RunHostProbes(ctx, client) {
-			m.Attribute.Service = pd.Service.String()
-			m.Attribute.Role = pd.Role.String()
-			m.Attribute.HostID = m.HostID
 			chs.SendHostMetric(m)
 		}
 	}
@@ -157,6 +153,11 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []
 					log.Printf("[warn] probe failed. %s host id:%s name:%s probe:%s", err, host.ID, host.Name, probe)
 				}
 				for _, m := range metrics {
+					m.Attribute = &Attribute{
+						Service: pd.Service.String(),
+						HostID:  host.ID,
+					}
+					m.Attribute.SetExtra(pd.Attributes, host)
 					ms = append(ms, m.HostMetric(host.ID))
 				}
 			}
@@ -186,6 +187,10 @@ func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client)
 			log.Printf("[warn] probe failed. %s service:%s probe:%s", err, serviceName, probe)
 		}
 		for _, m := range metrics {
+			m.Attribute = &Attribute{
+				Service: serviceName,
+			}
+			m.Attribute.SetExtra(pd.Attributes, host)
 			ms = append(ms, m.ServiceMetric(serviceName))
 		}
 	}

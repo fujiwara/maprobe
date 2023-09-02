@@ -2,6 +2,7 @@ package maprobe
 
 import (
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ type Metric struct {
 	Name      string
 	Value     float64
 	Timestamp time.Time
-	Attribute Attribute
+	Attribute *Attribute
 }
 
 func (m Metric) Otel() otelmetricdata.Metrics {
@@ -130,16 +131,35 @@ func (m ServiceMetric) String() string {
 
 type Attribute struct {
 	Service string
-	Role    string
 	HostID  string
+	Extra   map[string]string
 }
 
-func (a Attribute) Otel() *otelattribute.Set {
-	s := otelattribute.NewSet(
+func (a *Attribute) SetExtra(ex map[string]string, host *mackerel.Host) {
+	if len(ex) == 0 {
+		return
+	}
+	a.Extra = make(map[string]string, len(ex))
+	for k, v := range ex {
+		vv, err := expandPlaceHolder(v, host, nil)
+		if err != nil {
+			log.Printf("[error] cannot expand placeholder %s: %s", v, err)
+			continue
+		}
+		a.Extra[k] = vv
+	}
+}
+
+func (a *Attribute) Otel() *otelattribute.Set {
+	kvs := make([]otelattribute.KeyValue, 0, len(a.Extra)+3)
+	for k, v := range a.Extra {
+		kvs = append(kvs, otelattribute.String(k, v))
+	}
+	kvs = append(kvs,
 		semconv.ServiceName(a.Service),
-		semconv.ServiceNamespace(a.Role),
 		semconv.HostID(a.HostID),
 	)
+	s := otelattribute.NewSet(kvs...)
 	return &s
 }
 
