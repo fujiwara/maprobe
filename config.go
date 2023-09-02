@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -230,7 +231,7 @@ func (c *Config) fetch() ([]byte, error) {
 	u, err := url.Parse(c.location)
 	if err != nil {
 		// file path
-		return ioutil.ReadFile(c.location)
+		return os.ReadFile(c.location)
 	}
 	switch u.Scheme {
 	case "http", "https":
@@ -239,7 +240,7 @@ func (c *Config) fetch() ([]byte, error) {
 		return fetchS3(u)
 	default:
 		// file
-		return ioutil.ReadFile(u.Path)
+		return os.ReadFile(u.Path)
 	}
 }
 
@@ -255,7 +256,7 @@ func fetchHTTP(u *url.URL) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func fetchS3(u *url.URL) ([]byte, error) {
