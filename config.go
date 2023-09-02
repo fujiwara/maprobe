@@ -30,9 +30,23 @@ type Config struct {
 
 	ProbeOnly *bool `yaml:"probe_only"` // deprecated
 
-	Backup BackupConfig `yaml:"backup"`
+	Backup      *BackupConfig      `yaml:"backup"`
+	Destination *DestinationConfig `yaml:"destination"`
+}
 
-	EnableOtel bool `yaml:"enable_otel"`
+type MackerelConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+type OtelConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Endpoint string `yaml:"endpoint"`
+	Insecure bool   `yaml:"insecure"`
+}
+
+type DestinationConfig struct {
+	Mackerel *MackerelConfig `yaml:"mackerel"`
+	Otel     *OtelConfig     `yaml:"otel"`
 }
 
 type exString struct {
@@ -131,6 +145,15 @@ func LoadConfig(location string) (*Config, string, error) {
 		location:              location,
 		PostProbedMetrics:     true,
 		PostAggregatedMetrics: true,
+		Backup:                &BackupConfig{},
+		Destination: &DestinationConfig{
+			Mackerel: &MackerelConfig{
+				Enabled: true,
+			},
+			Otel: &OtelConfig{
+				Enabled: false,
+			},
+		},
 	}
 	b, err := c.fetch()
 	if err != nil {

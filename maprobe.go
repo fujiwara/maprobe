@@ -55,29 +55,38 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		client.mackerel.HTTPClient.Transport = &postFailureTransport{}
 	}
 
-	if conf.EnableOtel {
-		log.Println("[info] enable Otel feature!!!")
-	}
-	chs := NewChannels(conf.EnableOtel)
+	chs := NewChannels(conf.Destination)
 	defer chs.Close()
 
 	if len(conf.Probes) > 0 {
 		wg.Add(2)
 		if conf.PostProbedMetrics {
-			go postHostMetricWorker(wg, client, chs)
-			go postServiceMetricWorker(wg, client, chs)
-			go postOtelMetricWorker(wg, client, chs)
+			if conf.Destination.Mackerel.Enabled {
+				go postHostMetricWorker(wg, client, chs)
+				go postServiceMetricWorker(wg, client, chs)
+			}
+			if conf.Destination.Otel.Enabled {
+				go postOtelMetricWorker(wg, chs, conf.Destination.Otel)
+			}
 		} else {
-			go dumpHostMetricWorker(wg, chs)
-			go dumpServiceMetricWorker(wg, chs)
-			go dumpOtelMetricWorker(wg, chs)
+			if conf.Destination.Mackerel.Enabled {
+				go dumpHostMetricWorker(wg, chs)
+				go dumpServiceMetricWorker(wg, chs)
+			}
+			if conf.Destination.Otel.Enabled {
+				go dumpOtelMetricWorker(wg, chs)
+			}
 		}
 	}
 
 	if len(conf.Aggregates) > 0 {
 		wg.Add(1)
 		if conf.PostAggregatedMetrics {
-			go postServiceMetricWorker(wg, client, chs)
+			if conf.Destination.Mackerel.Enabled {
+				// aggregates are posted to Mackerel only
+				go postServiceMetricWorker(wg, client, chs)
+			}
+			// TODO: aggregates are not posted to OTel yet
 		} else {
 			go dumpServiceMetricWorker(wg, chs)
 		}
@@ -120,7 +129,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	}
 }
 
-func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client, chs Channels, wg *sync.WaitGroup) {
+func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client, chs *Channels, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	service := ag.Service.String()
@@ -215,12 +224,12 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client,
 				Value:     value,
 				Timestamp: time.Unix(timestamp, 0),
 			}
-			chs.AggregatedMetrics <- m.ServiceMetric(ag.Service.String())
+			chs.SendAggregatedMetric(m.ServiceMetric(ag.Service.String()))
 		}
 	}
 }
 
-func postHostMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
+func postHostMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) {
 	log.Println("[info] starting postHostMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
@@ -257,7 +266,7 @@ func postHostMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 	}
 }
 
-func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
+func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) {
 	log.Println("[info] starting postServiceMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
@@ -306,14 +315,25 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 	}
 }
 
-func postOtelMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
+func postOtelMetricWorker(wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
 	ctx := context.TODO()
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint == "" {
-		log.Println("[error] OTLP endpoint is not set. skip posting OTel metrics")
-		return
+	opts := []otlpmetricgrpc.Option{
+		otlpmetricgrpc.WithHeaders(map[string]string{"Mackerel-Api-Key": MackerelAPIKey}),
+		otlpmetricgrpc.WithCompressor("gzip"),
 	}
-	exporter, err := otlpmetricgrpc.New(ctx)
+	endpointURL := oc.Endpoint
+	if oc.Endpoint != "" {
+		opts = append(opts, otlpmetricgrpc.WithEndpoint(oc.Endpoint))
+	}
+	if oc.Insecure {
+		opts = append(opts, otlpmetricgrpc.WithInsecure())
+		endpointURL = "http://" + endpointURL
+	} else {
+		endpointURL = "https://" + endpointURL
+	}
+	log.Printf("[info] starting postOtelMetricWorker to %s", endpointURL)
+
+	exporter, err := otlpmetricgrpc.New(ctx, opts...)
 	if err != nil {
 		log.Printf("[error] failed to create OpenTelemetry meter exporter: %v", err)
 		return
@@ -322,8 +342,6 @@ func postOtelMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 	attrs := otelresource.NewSchemaless(
 		otelattribute.String("service.name", "maprobe"),
 	)
-
-	log.Println("[info] starting postOtelMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
 	mvs := make([]otelmetricdata.Metrics, 0, PostMetricBufferLength)
@@ -346,7 +364,7 @@ func postOtelMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 		if len(mvs) == 0 {
 			continue
 		}
-		log.Printf("[debug] posting %d otel metrics to %s", len(mvs), endpoint)
+		log.Printf("[debug] posting %d otel metrics to %s", len(mvs), endpointURL)
 		rms := &otelmetricdata.ResourceMetrics{
 			Resource: attrs,
 			ScopeMetrics: []otelmetricdata.ScopeMetrics{
@@ -364,7 +382,7 @@ func postOtelMetricWorker(wg *sync.WaitGroup, client *Client, chs Channels) {
 	}
 }
 
-func dumpHostMetricWorker(wg *sync.WaitGroup, chs Channels) {
+func dumpHostMetricWorker(wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpHostMetricWorker")
 	for m := range chs.HostMetrics {
@@ -373,7 +391,7 @@ func dumpHostMetricWorker(wg *sync.WaitGroup, chs Channels) {
 	}
 }
 
-func dumpServiceMetricWorker(wg *sync.WaitGroup, chs Channels) {
+func dumpServiceMetricWorker(wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpServiceMetricWorker")
 	for m := range chs.ServiceMetrics {
@@ -382,10 +400,7 @@ func dumpServiceMetricWorker(wg *sync.WaitGroup, chs Channels) {
 	}
 }
 
-func dumpOtelMetricWorker(wg *sync.WaitGroup, chs Channels) {
-	if chs.OtelMetrics == nil {
-		return
-	}
+func dumpOtelMetricWorker(wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpOtelMetricWorker")
 	for m := range chs.OtelMetrics {
