@@ -15,7 +15,7 @@ maprobe agent works as below.
 1. For each hosts, execute probes (ping, tcp, http, command).
    - expand place holder in configuration `{{ .Host }}` as [Mackerel host struct](https://godoc.org/github.com/mackerelio/mackerel-client-go#Host).
    - `{{ .Host.IPAddress.eth0 }}` expand to e.g. `192.168.1.1`
-1. Posts host metrics to Mackerel.
+1. Posts host metrics to Mackerel (and/or OpenTelemetry metrics endpoint if configured).
 1. Iterates these processes each 60 sec.
 
 ### for aggregates
@@ -124,6 +124,9 @@ probes:
         - "mackerel-plugin-redis"
         - "-host={{ .Host.IPAddress.eth0 }}"
         - "-tempfile=/tmp/redis-{{ .Host.ID }}"
+    attributes: # supoort OpenTelemetry attributes
+      - service.namespaece: redis
+      - host.name: "{{ .Host.Name }}"
 
   - service: production
     service_metric: true # post metrics as service metrics
@@ -134,6 +137,46 @@ probes:
         Content-Type: application/json
       body: '{"hello":"world"}'
       expect_pattern: 'ok'
+
+destination:
+  mackerel:
+    enabled: true # by default
+  otel:
+    enabled: true # defualt false
+    endpoint: localhost:4317
+    insecure: true
+```
+
+#### OpenTelemetry metrics endpoint support
+
+`destination.otel.enabled: true` in configuration enables to post metrics to OpenTelemetry metrics endpoint.
+
+```yaml
+destination:
+  mackerel:
+    enabled: false # disable mackerel host/service metrics
+  otel:
+    enabled: true
+    endpoint: localhost:4317
+    insecure: true
+```
+
+Extra attributes can be added to metrics by `attributes` in probe configuration.
+
+By default, maprobe adds `service.name` and `host.id` attributes to metrics.
+
+```yaml
+probes:
+  - service: production
+    role: redis
+    command:
+      command:
+        - "mackerel-plugin-redis"
+        - "-host={{ .Host.IPAddress.eth0 }}"
+        - "-tempfile=/tmp/redis-{{ .Host.ID }}"
+    attributes: # supoort OpenTelemetry attributes
+      - service.namespaece: redis
+      - host.name: "{{ .Host.Name }}"
 ```
 
 #### Service metrics support in probes
