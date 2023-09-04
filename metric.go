@@ -151,7 +151,7 @@ func (a *Attribute) SetExtra(ex map[string]string, host *mackerel.Host) {
 }
 
 func (a *Attribute) Otel() *otelattribute.Set {
-	kvs := make([]otelattribute.KeyValue, 0, len(a.Extra)+3)
+	kvs := make([]otelattribute.KeyValue, 0, len(a.Extra)+2)
 	for k, v := range a.Extra {
 		kvs = append(kvs, otelattribute.String(k, v))
 	}

@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"net/url"
 	"os"
 	"sync"
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	otelattribute "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	otelmetricdata "go.opentelemetry.io/otel/sdk/metric/metricdata"
 	otelresource "go.opentelemetry.io/otel/sdk/resource"
@@ -25,6 +25,7 @@ var (
 	clientSem              = make(chan struct{}, MaxClientConcurrency)
 	ProbeInterval          = 60 * time.Second
 	mackerelRetryInterval  = 10 * time.Second
+	otelReryInterval       = 10 * time.Second
 	metricTimeMargin       = -3 * time.Minute
 	MackerelAPIKey         string
 )
@@ -316,33 +317,17 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) 
 }
 
 func postOtelMetricWorker(wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
+	defer wg.Done()
 	ctx := context.TODO()
-	opts := []otlpmetricgrpc.Option{
-		otlpmetricgrpc.WithHeaders(map[string]string{"Mackerel-Api-Key": MackerelAPIKey}),
-		otlpmetricgrpc.WithCompressor("gzip"),
-	}
-	endpointURL := oc.Endpoint
-	if oc.Endpoint != "" {
-		opts = append(opts, otlpmetricgrpc.WithEndpoint(oc.Endpoint))
-	}
-	if oc.Insecure {
-		opts = append(opts, otlpmetricgrpc.WithInsecure())
-		endpointURL = "http://" + endpointURL
-	} else {
-		endpointURL = "https://" + endpointURL
-	}
-	log.Printf("[info] starting postOtelMetricWorker to %s", endpointURL)
-
-	exporter, err := otlpmetricgrpc.New(ctx, opts...)
+	exporter, endpointURL, err := newOtelExporter(ctx, oc)
 	if err != nil {
 		log.Printf("[error] failed to create OpenTelemetry meter exporter: %v", err)
 		return
 	}
 	defer exporter.Shutdown(ctx)
-	attrs := otelresource.NewSchemaless(
-		otelattribute.String("service.name", "maprobe"),
-	)
-	defer wg.Done()
+	log.Printf("[info] starting postOtelMetricWorker endpoint %s", endpointURL)
+	attrs := otelresource.NewSchemaless()
+
 	ticker := time.NewTicker(10 * time.Second)
 	mvs := make([]otelmetricdata.Metrics, 0, PostMetricBufferLength)
 	run := true
@@ -373,13 +358,40 @@ func postOtelMetricWorker(wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
 		}
 		if err := exporter.Export(ctx, rms); err != nil {
 			log.Printf("[error] failed to export otel metrics: %v", err)
-			time.Sleep(mackerelRetryInterval)
+			time.Sleep(otelReryInterval)
 			continue
 		}
 		log.Printf("[debug] post otel metrics succeeded.")
 		// success. reset buffer
 		mvs = mvs[:0]
 	}
+}
+
+func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Exporter, string, error) {
+	opts := []otlpmetricgrpc.Option{
+		otlpmetricgrpc.WithHeaders(map[string]string{"Mackerel-Api-Key": MackerelAPIKey}),
+		otlpmetricgrpc.WithCompressor("gzip"),
+	}
+	var endpointURL = url.URL{
+		Scheme: "https",
+		Host:   oc.Endpoint,
+	}
+	if oc.Endpoint != "" {
+		opts = append(opts, otlpmetricgrpc.WithEndpoint(oc.Endpoint))
+	} else {
+		// TODO fix to use Mackrel when it is GA
+		opts = append(opts, otlpmetricgrpc.WithEndpoint("localhost:4317"))
+		endpointURL.Host = "localhost:4317"
+	}
+	if oc.Insecure {
+		opts = append(opts, otlpmetricgrpc.WithInsecure())
+		endpointURL.Scheme = "http"
+	}
+	exporter, err := otlpmetricgrpc.New(ctx, opts...)
+	if err != nil {
+		return nil, "", err
+	}
+	return exporter, endpointURL.String(), nil
 }
 
 func dumpHostMetricWorker(wg *sync.WaitGroup, chs *Channels) {
