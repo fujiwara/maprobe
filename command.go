@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -113,7 +114,8 @@ func (p *CommandProbe) String() string {
 }
 
 func (p *CommandProbe) TempDir() string {
-	dir := filepath.Join(os.TempDir(), fmt.Sprintf("maprobe_command_%x", p))
+	s := sha256.Sum256([]byte(p.String()))
+	dir := filepath.Join(os.TempDir(), fmt.Sprintf("maprobe_command_%x", s))
 	err := os.Mkdir(dir, 0700)
 	if err != nil {
 		if os.IsExist(err) {
