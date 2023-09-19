@@ -140,9 +140,9 @@ probes:
 
 destination:
   mackerel:
-    enabled: true # by default
+    enabled: true # default true
   otel:
-    enabled: true # defualt false
+    enabled: true # default false
     endpoint: localhost:4317
     insecure: true
 ```
@@ -174,8 +174,8 @@ probes:
         - "mackerel-plugin-redis"
         - "-host={{ .Host.IPAddress.eth0 }}"
         - "-tempfile=/tmp/redis-{{ .Host.ID }}"
-    attributes: # supoort OpenTelemetry attributes
-      - service.namespaece: redis
+    attributes: # extra attributes
+      - service.namespace: redis
       - host.name: "{{ .Host.Name }}"
 ```
 
