@@ -60,35 +60,39 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer chs.Close()
 
 	if len(conf.Probes) > 0 {
-		wg.Add(2)
 		if conf.PostProbedMetrics {
 			if conf.Destination.Mackerel.Enabled {
+				wg.Add(2)
 				go postHostMetricWorker(wg, client, chs)
 				go postServiceMetricWorker(wg, client, chs)
 			}
 			if conf.Destination.Otel.Enabled {
+				wg.Add(1)
 				go postOtelMetricWorker(wg, chs, conf.Destination.Otel)
 			}
 		} else {
 			if conf.Destination.Mackerel.Enabled {
+				wg.Add(2)
 				go dumpHostMetricWorker(wg, chs)
 				go dumpServiceMetricWorker(wg, chs)
 			}
 			if conf.Destination.Otel.Enabled {
+				wg.Add(1)
 				go dumpOtelMetricWorker(wg, chs)
 			}
 		}
 	}
 
 	if len(conf.Aggregates) > 0 {
-		wg.Add(1)
 		if conf.PostAggregatedMetrics {
 			if conf.Destination.Mackerel.Enabled {
 				// aggregates are posted to Mackerel only
+				wg.Add(1)
 				go postServiceMetricWorker(wg, client, chs)
 			}
 			// TODO: aggregates are not posted to OTel yet
 		} else {
+			wg.Add(1)
 			go dumpServiceMetricWorker(wg, chs)
 		}
 	}
@@ -318,7 +322,8 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) 
 
 func postOtelMetricWorker(wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
 	defer wg.Done()
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	exporter, endpointURL, err := newOtelExporter(ctx, oc)
 	if err != nil {
 		log.Printf("[error] failed to create OpenTelemetry meter exporter: %v", err)
