@@ -37,7 +37,7 @@ func (m Metric) Otel() otelmetricdata.Metrics {
 
 func (m Metric) OtelString() string {
 	// promhttp_metric_handler_requests_total{code="200"} 988
-	return fmt.Sprintf("%s{%s} %f", m.Name, m.Attribute, m.Value)
+	return fmt.Sprintf("%s{%s} %f %s", m.Name, m.Attribute, m.Value, m.Timestamp.Format(time.RFC3339))
 }
 
 func (m Metric) String() string {
