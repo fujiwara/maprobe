@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
@@ -145,6 +146,10 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	cmd.Env = append(cmd.Env, p.env...)
 	cmd.Env = append(cmd.Env, "TMPDIR="+p.TempDir())
 	cmd.Stderr = os.Stderr
+	cmd.Cancel = func() error {
+		return cmd.Process.Signal(syscall.SIGTERM)
+	}
+	cmd.WaitDelay = 5 * time.Second // SIGKILL after 5 seconds
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return ms, errors.Wrap(err, "stdout open failed")
@@ -244,6 +249,10 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 
 	cmd := exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
 	cmd.Env = append(os.Environ(), "MACKEREL_AGENT_PLUGIN_META=1")
+	cmd.Cancel = func() error {
+		return cmd.Process.Signal(syscall.SIGTERM)
+	}
+	cmd.WaitDelay = 5 * time.Second // SIGKILL after 5 seconds
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
