@@ -149,7 +149,8 @@ destination:
 
 #### OpenTelemetry metrics endpoint support
 
-`destination.otel.enabled: true` in configuration enables to post metrics to OpenTelemetry metrics endpoint.
+`destination.otel.enabled: true` enables to post metrics to OpenTelemetry metrics endpoint.
+maprobe uses the gRPC protocol to send metrics.
 
 ```yaml
 destination:
