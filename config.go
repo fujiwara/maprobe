@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -30,7 +31,23 @@ type Config struct {
 
 	ProbeOnly *bool `yaml:"probe_only"` // deprecated
 
-	Backup BackupConfig `yaml:"backup"`
+	Backup      *BackupConfig      `yaml:"backup"`
+	Destination *DestinationConfig `yaml:"destination"`
+}
+
+type MackerelConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+type OtelConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	Endpoint string `yaml:"endpoint"`
+	Insecure bool   `yaml:"insecure"`
+}
+
+type DestinationConfig struct {
+	Mackerel *MackerelConfig `yaml:"mackerel"`
+	Otel     *OtelConfig     `yaml:"otel"`
 }
 
 type exString struct {
@@ -71,6 +88,8 @@ type ProbeDefinition struct {
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
 	HTTP    *HTTPProbeConfig    `yaml:"http"`
 	Command *CommandProbeConfig `yaml:"command"`
+
+	Attributes map[string]string `yaml:"attributes"`
 }
 
 func (pd *ProbeDefinition) Validate() error {
@@ -129,6 +148,15 @@ func LoadConfig(location string) (*Config, string, error) {
 		location:              location,
 		PostProbedMetrics:     true,
 		PostAggregatedMetrics: true,
+		Backup:                &BackupConfig{},
+		Destination: &DestinationConfig{
+			Mackerel: &MackerelConfig{
+				Enabled: true,
+			},
+			Otel: &OtelConfig{
+				Enabled: false,
+			},
+		},
 	}
 	b, err := c.fetch()
 	if err != nil {
@@ -205,7 +233,7 @@ func (c *Config) fetch() ([]byte, error) {
 	u, err := url.Parse(c.location)
 	if err != nil {
 		// file path
-		return ioutil.ReadFile(c.location)
+		return os.ReadFile(c.location)
 	}
 	switch u.Scheme {
 	case "http", "https":
@@ -214,7 +242,7 @@ func (c *Config) fetch() ([]byte, error) {
 		return fetchS3(u)
 	default:
 		// file
-		return ioutil.ReadFile(u.Path)
+		return os.ReadFile(u.Path)
 	}
 }
 
@@ -230,7 +258,7 @@ func fetchHTTP(u *url.URL) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func fetchS3(u *url.URL) ([]byte, error) {

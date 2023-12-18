@@ -94,15 +94,15 @@ func expandPlaceHolder(src string, host *mackerel.Host, env map[string]string) (
 	return b.String(), err
 }
 
-func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, hch chan HostMetric, sch chan ServiceMetric, wg *sync.WaitGroup) {
+func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, chs *Channels, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if pd.IsServiceMetric {
 		for _, m := range pd.RunServiceProbes(ctx, client) {
-			sch <- m
+			chs.SendServiceMetric(m)
 		}
 	} else {
 		for _, m := range pd.RunHostProbes(ctx, client) {
-			hch <- m
+			chs.SendHostMetric(m)
 		}
 	}
 }
@@ -153,6 +153,11 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []
 					log.Printf("[warn] probe failed. %s host id:%s name:%s probe:%s", err, host.ID, host.Name, probe)
 				}
 				for _, m := range metrics {
+					m.Attribute = &Attribute{
+						Service: pd.Service.String(),
+						HostID:  host.ID,
+					}
+					m.Attribute.SetExtra(pd.Attributes, host)
 					ms = append(ms, m.HostMetric(host.ID))
 				}
 			}
@@ -182,6 +187,10 @@ func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client)
 			log.Printf("[warn] probe failed. %s service:%s probe:%s", err, serviceName, probe)
 		}
 		for _, m := range metrics {
+			m.Attribute = &Attribute{
+				Service: serviceName,
+			}
+			m.Attribute.SetExtra(pd.Attributes, host)
 			ms = append(ms, m.ServiceMetric(serviceName))
 		}
 	}

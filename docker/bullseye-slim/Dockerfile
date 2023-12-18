@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.18.4-buster AS build-env
+FROM --platform=${BUILDPLATFORM} golang:1.21.5-bullseye AS build-env
 
 ARG TARGETOS
 ARG TARGETARCH
