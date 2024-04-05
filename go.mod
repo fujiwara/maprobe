@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.54
 	github.com/fujiwara/ridge v0.6.2
 	github.com/google/go-cmp v0.5.9
-	github.com/google/gops v0.3.25
+	github.com/google/gops v0.3.28
 	github.com/hashicorp/logutils v1.0.0
 	github.com/mackerelio/mackerel-client-go v0.21.1
 	github.com/pkg/errors v0.9.1
