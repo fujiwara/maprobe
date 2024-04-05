@@ -159,14 +159,14 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	scanner := bufio.NewScanner(stdout)
 
 	if err := cmd.Start(); err != nil {
-		return ms, errors.Wrap(err, "command execute failed")
+		return ms, errors.Wrap(err, fmt.Sprintf("command execute failed. %s", strings.Join(p.Command, " ")))
 	}
 
 	for scanner.Scan() {
 		log.Println("[trace]", scanner.Text())
 		m, err := parseMetricLine(scanner.Text())
 		if err != nil {
-			log.Println("[warn]", err)
+			log.Printf("[warn] %s failed to parse metric line. %s", strings.Join(p.Command, " "), err)
 			continue
 		}
 		if p.GraphDefs {
@@ -287,9 +287,12 @@ func parseMetricLine(b string) (Metric, error) {
 		return Metric{}, errors.New("invalid metric format. insufficient columns")
 	}
 	name, value, timestamp := cols[0], cols[1], cols[2]
-	m := Metric{}
-	m.Name = name
-
+	if name == "" {
+		return Metric{}, errors.New("invalid metric format. name is empty")
+	}
+	m := Metric{
+		Name: name,
+	}
 	if v, err := strconv.ParseFloat(value, 64); err != nil {
 		return m, fmt.Errorf("invalid metric value: %s", value)
 	} else {
