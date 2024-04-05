@@ -159,14 +159,14 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	scanner := bufio.NewScanner(stdout)
 
 	if err := cmd.Start(); err != nil {
-		return ms, errors.Wrap(err, "command execute failed")
+		return ms, errors.Wrap(err, fmt.Sprintf("command execute failed. %s", strings.Join(p.Command, " ")))
 	}
 
 	for scanner.Scan() {
 		log.Println("[trace]", scanner.Text())
 		m, err := parseMetricLine(scanner.Text())
 		if err != nil {
-			log.Println("[warn]", err)
+			log.Printf("[warn] %s failed to parse metric line. %s", strings.Join(p.Command, " "), err)
 			continue
 		}
 		if p.GraphDefs {
