@@ -2,6 +2,7 @@ package maprobe_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,5 +84,36 @@ func TestCommandFail(t *testing.T) {
 	c, _, err := maprobe.LoadConfig("test/command_fail.yaml")
 	if err == nil {
 		t.Errorf("must be failed but got %#v", c)
+	}
+}
+
+var ngInputs = []struct {
+	Title string
+	Line  string
+}{
+	{
+		Title: "invalid value",
+		Line:  strings.Join([]string{"test.foo", "x", "1523261168"}, "\t"),
+	},
+	{
+		Title: "invalid timestamp",
+		Line:  strings.Join([]string{"test.foo", "1", "x"}, "\t"),
+	},
+	{
+		Title: "Empty",
+		Line:  "",
+	},
+	{
+		Title: "No name",
+		Line:  strings.Join([]string{"", "1", "1523261168"}, "\t"),
+	},
+}
+
+func TestParseMetricLineNG(t *testing.T) {
+	for _, c := range ngInputs {
+		_, err := maprobe.ParseMetricLine(c.Line)
+		if err == nil {
+			t.Errorf("%s: must be failed", c.Title)
+		}
 	}
 }
