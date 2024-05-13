@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/aws/aws-lambda-go v1.39.1
-	github.com/aws/aws-sdk-go v1.44.54
+	github.com/aws/aws-sdk-go v1.53.1
 	github.com/fujiwara/ridge v0.6.2
 	github.com/google/go-cmp v0.5.9
 	github.com/google/gops v0.3.25
@@ -42,6 +42,6 @@ require (
 	golang.org/x/tools/cmd/cover v0.1.0-deprecated // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230530153820-e85fd2cbaebc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230530153820-e85fd2cbaebc // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
 	google.golang.org/grpc v1.57.1 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 )
