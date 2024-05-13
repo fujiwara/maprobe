@@ -1,5 +1,5 @@
 export GO111MODULE := on
-LATEST_TAG := $(shell git describe --abbrev=0 --tags)
+LATEST_TAG := $(shell git describe --abbrev=0 --tagsgit describe --abbrev=0 --tags)
 TAG ?= latest
 
 .PHONY: setup setup_ci test lint dist clean release
@@ -28,7 +28,7 @@ lint: setup
 	golint -set_exit_status ./...
 
 dist: setup
-	CGO_ENABLED=0 goxz -pv=$(LATEST_TAG) -os=darwin,linux -build-ldflags="-w -s" -arch=amd64,arm64 -d=dist -z ./cmd/maprobe
+	CGO_ENABLED=0 goxz -pv=$(LATEST_TAG) -os=darwin,linux -build-ldflags="-w -s -X github.com/fujiwara/maprobe.Version=$(LATEST_TAG)" -arch=amd64,arm64 -d=dist -z ./cmd/maprobe
 
 clean:
 	rm -fr dist/* test/config.*.yaml cmd/maprobe/maprobe
