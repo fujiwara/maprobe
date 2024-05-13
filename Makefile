@@ -1,5 +1,5 @@
 export GO111MODULE := on
-LATEST_TAG := $(shell git describe --abbrev=0 --tagsgit describe --abbrev=0 --tags)
+LATEST_TAG := $(shell git describe --abbrev=0 --tags)
 TAG ?= latest
 
 .PHONY: setup setup_ci test lint dist clean release
