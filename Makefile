@@ -7,7 +7,7 @@ TAG ?= latest
 
 cmd/maprobe/maprobe: *.go cmd/maprobe/main.go
 	cd cmd/maprobe && \
-	go build -ldflags "-w -s"
+	go build -ldflags "-w -s -X github.com/fujiwara/maprobe.Version=$(LATEST_TAG)"
 
 install: cmd/maprobe/maprobe
 	install cmd/maprobe/maprobe $(GOPATH)/bin
