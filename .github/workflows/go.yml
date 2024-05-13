@@ -24,3 +24,14 @@ jobs:
           make setup_ci
           make setup
           make test
+
+      - name: build with version
+        run: |
+          make
+          version=$(./cmd/maprobe/maprobe version 2>&1)
+          if [[ echo "$version" | grep -q "HEAD" ]]; then
+            echo "failed to embedded version"
+            exit 1
+          else
+            echo $version
+          fi
