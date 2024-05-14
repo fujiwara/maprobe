@@ -3,10 +3,10 @@ package maprobe
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"net/url"
-	"os"
 	"sync"
 	"time"
 
@@ -56,10 +56,6 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	}
 	log.Println("[debug]", conf.String())
 	client := newClient(MackerelAPIKey, conf.Backup.FirehoseStreamName)
-	if os.Getenv("EMULATE_FAILURE") != "" {
-		// force fail for POST requests
-		client.mackerel.HTTPClient.Transport = &postFailureTransport{}
-	}
 
 	chs := NewChannels(conf.Destination)
 	defer chs.Close()
@@ -265,10 +261,10 @@ func postHostMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Clien
 		log.Printf("[debug] posting %d host metrics to Mackerel", len(mvs))
 		b, _ := json.Marshal(mvs)
 		log.Println("[debug]", string(b))
-		if err := retryPolicy.Do(ctx, func() error {
+		if err := doRetry(ctx, func() error {
 			return client.PostHostMetricValues(mvs)
 		}); err != nil {
-			log.Println("[error] failed to post host metrics to Mackerel", err)
+			log.Printf("[error] failed to post host metrics to Mackerel %s", err)
 			continue
 		}
 		log.Printf("[debug] post host metrics succeeded.")
@@ -313,7 +309,7 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 			log.Printf("[debug] posting %d service metrics to Mackerel:%s", len(mvs), serviceName)
 			b, _ := json.Marshal(mvs)
 			log.Println("[debug]", string(b))
-			if err := retryPolicy.Do(ctx, func() error {
+			if err := doRetry(ctx, func() error {
 				return client.PostServiceMetricValues(serviceName, mvs)
 			}); err != nil {
 				log.Printf("[error] failed to post service metrics to Mackerel:%s %s", serviceName, err)
@@ -329,8 +325,6 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 
 func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
 	defer wg.Done()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	exporter, endpointURL, err := newOtelExporter(ctx, oc)
 	if err != nil {
 		log.Printf("[error] failed to create OpenTelemetry meter exporter: %v", err)
@@ -368,7 +362,7 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels
 				{Metrics: mvs},
 			},
 		}
-		if err := retryPolicy.Do(ctx, func() error {
+		if err := doRetry(ctx, func() error {
 			return exporter.Export(ctx, rms)
 		}); err != nil {
 			log.Printf("[error] failed to export otel metrics: %v", err)
@@ -435,4 +429,20 @@ func dumpOtelMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) 
 
 type templateParam struct {
 	Host *mackerel.Host
+}
+
+func doRetry(ctx context.Context, f func() error) error {
+	r := retryPolicy.Start(ctx)
+	var err error
+	for r.Continue() {
+		err = f()
+		if err == nil {
+			return nil
+		}
+		log.Printf("[warn] retrying: %s", err)
+	}
+	if r.Err() != nil {
+		return r.Err()
+	}
+	return fmt.Errorf("retry failed: %w", err)
 }

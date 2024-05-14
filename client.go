@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -28,6 +29,10 @@ func newClient(apiKey string, backupStream string) *Client {
 			svc:        firehose.New(sess),
 			streamName: backupStream,
 		}
+	}
+	if os.Getenv("EMULATE_FAILURE") != "" {
+		// force fail for POST requests
+		c.mackerel.HTTPClient.Transport = &postFailureTransport{}
 	}
 	return c
 }
