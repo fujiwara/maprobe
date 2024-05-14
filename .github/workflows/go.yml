@@ -27,7 +27,7 @@ jobs:
 
       - name: build with version
         run: |
-          git fetch --tags
+          git fetch --unshallow
           make
           version=$(./cmd/maprobe/maprobe version 2>&1)
           if [[ echo "$version" | grep -q "HEAD" ]]; then
