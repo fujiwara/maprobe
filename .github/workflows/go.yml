@@ -31,8 +31,7 @@ jobs:
           git fetch --unshallow
           make
           version=$(./cmd/maprobe/maprobe version 2>&1)
-          echo "$version" | grep -q "HEAD"
-          if [[ $? -eq 0 ]]; then
+          if [[ $version == *HEAD* ]]; then
             echo "failed to embedded version: $version"
             exit 1
           else
