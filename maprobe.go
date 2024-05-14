@@ -11,6 +11,7 @@ import (
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
+	"github.com/shogo82148/go-retry"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	otelmetricdata "go.opentelemetry.io/otel/sdk/metric/metricdata"
 	otelresource "go.opentelemetry.io/otel/sdk/resource"
@@ -24,11 +25,15 @@ var (
 	sem                    = make(chan struct{}, MaxConcurrency)
 	clientSem              = make(chan struct{}, MaxClientConcurrency)
 	ProbeInterval          = 60 * time.Second
-	mackerelRetryInterval  = 10 * time.Second
-	otelReryInterval       = 10 * time.Second
 	metricTimeMargin       = -3 * time.Minute
 	MackerelAPIKey         string
 )
+
+var retryPolicy = retry.Policy{
+	MinDelay: 1 * time.Second,
+	MaxDelay: 10 * time.Second,
+	MaxCount: 5,
+}
 
 func lock() {
 	sem <- struct{}{}
@@ -63,22 +68,22 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		if conf.PostProbedMetrics {
 			if conf.Destination.Mackerel.Enabled {
 				wg.Add(2)
-				go postHostMetricWorker(wg, client, chs)
-				go postServiceMetricWorker(wg, client, chs)
+				go postHostMetricWorker(ctx, wg, client, chs)
+				go postServiceMetricWorker(ctx, wg, client, chs)
 			}
 			if conf.Destination.Otel.Enabled {
 				wg.Add(1)
-				go postOtelMetricWorker(wg, chs, conf.Destination.Otel)
+				go postOtelMetricWorker(ctx, wg, chs, conf.Destination.Otel)
 			}
 		} else {
 			if conf.Destination.Mackerel.Enabled {
 				wg.Add(2)
-				go dumpHostMetricWorker(wg, chs)
-				go dumpServiceMetricWorker(wg, chs)
+				go dumpHostMetricWorker(ctx, wg, chs)
+				go dumpServiceMetricWorker(ctx, wg, chs)
 			}
 			if conf.Destination.Otel.Enabled {
 				wg.Add(1)
-				go dumpOtelMetricWorker(wg, chs)
+				go dumpOtelMetricWorker(ctx, wg, chs)
 			}
 		}
 	}
@@ -88,12 +93,12 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			if conf.Destination.Mackerel.Enabled {
 				// aggregates are posted to Mackerel only
 				wg.Add(1)
-				go postServiceMetricWorker(wg, client, chs)
+				go postServiceMetricWorker(ctx, wg, client, chs)
 			}
 			// TODO: aggregates are not posted to OTel yet
 		} else {
 			wg.Add(1)
-			go dumpServiceMetricWorker(wg, chs)
+			go dumpServiceMetricWorker(ctx, wg, chs)
 		}
 	}
 
@@ -134,7 +139,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	}
 }
 
-func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client, chs *Channels, wg *sync.WaitGroup) {
+func runAggregates(_ context.Context, ag *AggregateDefinition, client *Client, chs *Channels, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	service := ag.Service.String()
@@ -234,7 +239,7 @@ func runAggregates(ctx context.Context, ag *AggregateDefinition, client *Client,
 	}
 }
 
-func postHostMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) {
+func postHostMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Client, chs *Channels) {
 	log.Println("[info] starting postHostMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
@@ -260,9 +265,10 @@ func postHostMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) {
 		log.Printf("[debug] posting %d host metrics to Mackerel", len(mvs))
 		b, _ := json.Marshal(mvs)
 		log.Println("[debug]", string(b))
-		if err := client.PostHostMetricValues(mvs); err != nil {
+		if err := retryPolicy.Do(ctx, func() error {
+			return client.PostHostMetricValues(mvs)
+		}); err != nil {
 			log.Println("[error] failed to post host metrics to Mackerel", err)
-			time.Sleep(mackerelRetryInterval)
 			continue
 		}
 		log.Printf("[debug] post host metrics succeeded.")
@@ -271,7 +277,7 @@ func postHostMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) {
 	}
 }
 
-func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) {
+func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Client, chs *Channels) {
 	log.Println("[info] starting postServiceMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
@@ -307,9 +313,10 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) 
 			log.Printf("[debug] posting %d service metrics to Mackerel:%s", len(mvs), serviceName)
 			b, _ := json.Marshal(mvs)
 			log.Println("[debug]", string(b))
-			if err := client.PostServiceMetricValues(serviceName, mvs); err != nil {
+			if err := retryPolicy.Do(ctx, func() error {
+				return client.PostServiceMetricValues(serviceName, mvs)
+			}); err != nil {
 				log.Printf("[error] failed to post service metrics to Mackerel:%s %s", serviceName, err)
-				time.Sleep(mackerelRetryInterval)
 				continue
 			}
 			log.Printf("[debug] post service succeeded.")
@@ -320,7 +327,7 @@ func postServiceMetricWorker(wg *sync.WaitGroup, client *Client, chs *Channels) 
 	}
 }
 
-func postOtelMetricWorker(wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
+func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
 	defer wg.Done()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -361,9 +368,10 @@ func postOtelMetricWorker(wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
 				{Metrics: mvs},
 			},
 		}
-		if err := exporter.Export(ctx, rms); err != nil {
+		if err := retryPolicy.Do(ctx, func() error {
+			return exporter.Export(ctx, rms)
+		}); err != nil {
 			log.Printf("[error] failed to export otel metrics: %v", err)
-			time.Sleep(otelReryInterval)
 			continue
 		}
 		log.Printf("[debug] post otel metrics succeeded.")
@@ -399,7 +407,7 @@ func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Expor
 	return exporter, endpointURL.String(), nil
 }
 
-func dumpHostMetricWorker(wg *sync.WaitGroup, chs *Channels) {
+func dumpHostMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpHostMetricWorker")
 	for m := range chs.HostMetrics {
@@ -408,7 +416,7 @@ func dumpHostMetricWorker(wg *sync.WaitGroup, chs *Channels) {
 	}
 }
 
-func dumpServiceMetricWorker(wg *sync.WaitGroup, chs *Channels) {
+func dumpServiceMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpServiceMetricWorker")
 	for m := range chs.ServiceMetrics {
@@ -417,7 +425,7 @@ func dumpServiceMetricWorker(wg *sync.WaitGroup, chs *Channels) {
 	}
 }
 
-func dumpOtelMetricWorker(wg *sync.WaitGroup, chs *Channels) {
+func dumpOtelMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
 	log.Println("[info] starting dumpOtelMetricWorker")
 	for m := range chs.OtelMetrics {
