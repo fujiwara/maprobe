@@ -36,5 +36,5 @@ jobs:
             echo "failed to embedded version: $version"
             exit 1
           else
-            echo $version
+            echo "$version"
           fi
