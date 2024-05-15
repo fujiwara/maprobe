@@ -1,15 +1,17 @@
 package maprobe
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/mackerelio/mackerel-client-go"
 )
 
 type backupClient struct {
-	svc        *firehose.Firehose
+	svc        *firehose.Client
 	streamName string
 }
 
@@ -28,9 +30,9 @@ func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.M
 	if err != nil {
 		return err
 	}
-	_, err = c.svc.PutRecord(&firehose.PutRecordInput{
+	_, err = c.svc.PutRecord(context.TODO(), &firehose.PutRecordInput{
 		DeliveryStreamName: &c.streamName,
-		Record:             &firehose.Record{Data: data},
+		Record:             &types.Record{Data: data},
 	})
 	return err
 }
@@ -43,9 +45,9 @@ func (c *backupClient) PostHostMetricValues(mvs []*mackerel.HostMetricValue) err
 	if err != nil {
 		return err
 	}
-	_, err = c.svc.PutRecord(&firehose.PutRecordInput{
+	_, err = c.svc.PutRecord(context.TODO(), &firehose.PutRecordInput{
 		DeliveryStreamName: &c.streamName,
-		Record:             &firehose.Record{Data: data},
+		Record:             &types.Record{Data: data},
 	})
 	return err
 }
