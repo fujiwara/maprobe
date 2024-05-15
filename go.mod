@@ -4,11 +4,11 @@ go 1.20
 
 require (
 	github.com/aws/aws-lambda-go v1.39.1
-	github.com/aws/aws-sdk-go v1.53.2
 	github.com/aws/aws-sdk-go-v2 v1.26.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.13
 	github.com/aws/aws-sdk-go-v2/service/firehose v1.28.7
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.54.0
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.50.1
 	github.com/fujiwara/ridge v0.6.2
 	github.com/google/go-cmp v0.5.9
 	github.com/google/gops v0.3.25
