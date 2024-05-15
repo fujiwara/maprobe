@@ -3,22 +3,22 @@ package maprobe
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
 func GetSSMParameter(ctx context.Context, name string) (string, error) {
-	sess, err := session.NewSession()
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return "", err
 	}
-	svc := ssm.New(sess)
+	svc := ssm.NewFromConfig(cfg)
 	input := &ssm.GetParameterInput{
 		Name:           aws.String(name),
 		WithDecryption: aws.Bool(true),
 	}
-	result, err := svc.GetParameter(input)
+	result, err := svc.GetParameter(ctx, input)
 	if err != nil {
 		return "", err
 	}
