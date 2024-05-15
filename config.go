@@ -1,6 +1,8 @@
 package maprobe
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -11,10 +13,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -263,16 +264,24 @@ func fetchHTTP(u *url.URL) ([]byte, error) {
 
 func fetchS3(u *url.URL) ([]byte, error) {
 	log.Println("[debug] fetching S3", u)
-	sess := session.Must(session.NewSession())
-	downloader := s3manager.NewDownloader(sess)
+	ctx := context.TODO()
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	svc := s3.NewFromConfig(cfg)
 
-	buf := &aws.WriteAtBuffer{}
-	_, err := downloader.Download(buf, &s3.GetObjectInput{
+	buf := &bytes.Buffer{}
+	out, err := svc.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(u.Host),
 		Key:    aws.String(u.Path),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch from S3, %s", err)
+		return nil, fmt.Errorf("failed to get from S3, %w", err)
+	}
+	defer out.Body.Close()
+	if _, err := io.Copy(buf, out.Body); err != nil {
+		return nil, fmt.Errorf("failed to download from s3, %w", err)
 	}
 	return buf.Bytes(), nil
 }
