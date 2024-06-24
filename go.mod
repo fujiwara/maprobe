@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/logutils v1.0.0
 	github.com/mackerelio/mackerel-client-go v0.21.1
 	github.com/pkg/errors v0.9.1
-	github.com/shogo82148/go-retry v1.2.0
+	github.com/shogo82148/go-retry v1.3.1
 	github.com/tatsushid/go-fastping v0.0.0-20160109021039-d7bb493dee3e
 	go.opentelemetry.io/otel v1.17.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v0.40.0
