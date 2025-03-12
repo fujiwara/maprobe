@@ -204,7 +204,7 @@ backup:
 
 If maprobe cannot post metrics to Mackerel API, maprobe posts these metrics to Firehose stream as backup.
 
-`maprobe agent --with-firehose-endpoint` or `maprobe firehose-endpoint` runs HTTP server for [Firehose HTTP Endpoint](https://docs.amazonaws.cn/en_us/firehose/latest/dev/create-destination.html#create-destination-http).
+`maprobe agent --with-firehose-endpoint` or `maprobe firehose-endpoint` runs HTTP server for [Firehose HTTP Endpoint](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-http).
 
 You can configure the Firehose stream that send data to HTTP endpoint to maprobe's http server.
 
