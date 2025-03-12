@@ -21,7 +21,7 @@ test: setup
 	go test -v ./...
 
 setup_ci:
-	GO111MODULE=off go get golang.org/x/lint/golint
+	go install golang.org/x/lint/golint
 
 lint: setup
 	go vet ./...
