@@ -1,6 +1,6 @@
 module github.com/fujiwara/maprobe
 
-go 1.20
+go 1.23.0
 
 require (
 	github.com/aws/aws-lambda-go v1.39.1
