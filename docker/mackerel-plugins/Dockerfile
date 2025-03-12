@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.21.5-bullseye AS build-env
+FROM --platform=${BUILDPLATFORM} golang:1.24.1-bookworm AS build-env
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -13,8 +13,8 @@ COPY . /go/src/github.com/fujiwara/maprobe
 WORKDIR /go/src/github.com/fujiwara/maprobe
 RUN make install
 
-FROM debian:buster-slim
-LABEL maintainer "fujiwara <fujiwara.shunichiro@gmail.com>"
+FROM debian:bookworm-slim
+LABEL maintainer="fujiwara <fujiwara.shunichiro@gmail.com>"
 RUN apt-get update && apt-get -y upgrade && apt-get -y install curl ca-certificates gnupg
 RUN echo "deb [arch=amd64,arm64] http://apt.mackerel.io/v2/ mackerel contrib" > /etc/apt/sources.list.d/mackerel.list \
     && curl -sL https://mackerel.io/file/cert/GPG-KEY-mackerel-v2 | apt-key add - \

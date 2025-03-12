@@ -38,16 +38,16 @@ release: dist
 
 docker-build/%:
 	docker build --build-arg version=${TAG} \
-      	-t fujiwara/maprobe:${TAG}-$* \
-      	-f docker/$*/Dockerfile \
-    	.
+		-t fujiwara/maprobe:${TAG}-$* \
+		-f docker/$*/Dockerfile \
+		.
 
-docker-build-all: docker-build/bullseye-slim docker-build/buster-slim docker-build/mackerel-plugins docker-build/plain
+docker-build-all: docker-build/bookworm-slim docker-build/bullseye-slim docker-build/mackerel-plugins docker-build/plain
 
 docker-push/%:
 	docker push fujiwara/maprobe:${TAG}-$*
 
-docker-push-all: docker-push/bullseye-slim docker-push/buster-slim docker-push/mackerel-plugins docker-push/plain
+docker-push-all: docker-build/bookworm-slim docker-push/bullseye-slim docker-push/mackerel-plugins docker-push/plain
 
 docker-build-push/%:
 	docker buildx build --build-arg version=${TAG} \
@@ -57,4 +57,4 @@ docker-build-push/%:
 		--push \
 		.
 
-docker-build-push-all: docker-build-push/bullseye-slim docker-build-push/buster-slim docker-build-push/mackerel-plugins docker-build-push/plain
+docker-build-push-all: docker-build-push/bookworm-slim docker-build-push/bullseye-slim docker-build-push/mackerel-plugins docker-build-push/plain
