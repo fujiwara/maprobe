@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.21.5-bullseye AS build-env
+FROM --platform=${BUILDPLATFORM} golang:1.24.1-bookworm AS build-env
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -12,8 +12,8 @@ COPY . /go/src/github.com/fujiwara/maprobe
 WORKDIR /go/src/github.com/fujiwara/maprobe
 RUN make install
 
-FROM debian:buster-slim
-LABEL maintainer "fujiwara <fujiwara.shunichiro@gmail.com>"
+FROM debian:bookworm-slim
+LABEL maintainer="fujiwara <fujiwara.shunichiro@gmail.com>"
 
 RUN apt-get update && apt-get -y install ca-certificates && apt-get clean
 COPY --from=build-env /go/bin/maprobe /usr/bin
