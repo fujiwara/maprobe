@@ -3,9 +3,9 @@ module github.com/fujiwara/maprobe
 go 1.23.0
 
 require (
-	github.com/aws/aws-lambda-go v1.39.1
+	github.com/aws/aws-lambda-go v1.47.0
 	github.com/aws/aws-sdk-go v1.44.54
-	github.com/fujiwara/ridge v0.6.2
+	github.com/fujiwara/ridge v0.12.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/gops v0.3.25
 	github.com/hashicorp/logutils v1.0.0
