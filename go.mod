@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/aws/aws-lambda-go v1.39.1
-	github.com/aws/aws-sdk-go v1.44.54
+	github.com/aws/aws-sdk-go v1.55.6
 	github.com/fujiwara/ridge v0.6.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/gops v0.3.25
