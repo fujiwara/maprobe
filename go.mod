@@ -3,9 +3,9 @@ module github.com/fujiwara/maprobe
 go 1.23.0
 
 require (
-	github.com/aws/aws-lambda-go v1.39.1
+	github.com/aws/aws-lambda-go v1.48.0
 	github.com/aws/aws-sdk-go v1.44.54
-	github.com/fujiwara/ridge v0.6.2
+	github.com/fujiwara/ridge v0.13.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/gops v0.3.25
 	github.com/hashicorp/logutils v1.0.0
@@ -30,7 +30,7 @@ require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/pires/go-proxyproto v0.7.0 // indirect
+	github.com/pires/go-proxyproto v0.8.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric v0.40.0 // indirect
 	go.opentelemetry.io/otel/metric v1.17.0 // indirect
 	go.opentelemetry.io/otel/trace v1.17.0 // indirect
