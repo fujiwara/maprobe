@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -157,7 +157,7 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		ok = false
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("[warn] HTTP read body failed", err)
 		return ms, fmt.Errorf("read body failed: %w", err)
