@@ -11,8 +11,9 @@ import (
 	"strings"
 	"time"
 
-	mackerel "github.com/mackerelio/mackerel-client-go"
 	"fmt"
+
+	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
 var (
