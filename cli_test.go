@@ -195,6 +195,60 @@ func TestCLIParsing(t *testing.T) {
 			},
 		},
 		{
+			name: "http command with single header",
+			args: []string{"http", "https://example.com", "-H", "Content-Type=application/json"},
+			expected: &CLI{
+				LogLevel:    "info",
+				GopsEnabled: false,
+				HTTP: HTTPCmd{
+					URL:                "https://example.com",
+					Method:             "GET",
+					Body:               "",
+					ExpectPattern:      "",
+					Timeout:            0,
+					NoCheckCertificate: false,
+					Headers:            map[string]string{"Content-Type": "application/json"},
+					HostID:             "",
+				},
+			},
+		},
+		{
+			name: "http command with multiple headers",
+			args: []string{"http", "https://example.com", "-H", "Content-Type=application/json", "-H", "Authorization=Bearer token", "-H", "User-Agent=maprobe/1.0"},
+			expected: &CLI{
+				LogLevel:    "info",
+				GopsEnabled: false,
+				HTTP: HTTPCmd{
+					URL:                "https://example.com",
+					Method:             "GET",
+					Body:               "",
+					ExpectPattern:      "",
+					Timeout:            0,
+					NoCheckCertificate: false,
+					Headers:            map[string]string{"Content-Type": "application/json", "Authorization": "Bearer token", "User-Agent": "maprobe/1.0"},
+					HostID:             "",
+				},
+			},
+		},
+		{
+			name: "http command with headers and other options",
+			args: []string{"http", "https://example.com", "-m", "POST", "-b", "payload", "-H", "Content-Type=application/json", "-H", "X-Custom-Header=value123"},
+			expected: &CLI{
+				LogLevel:    "info",
+				GopsEnabled: false,
+				HTTP: HTTPCmd{
+					URL:                "https://example.com",
+					Method:             "POST",
+					Body:               "payload",
+					ExpectPattern:      "",
+					Timeout:            0,
+					NoCheckCertificate: false,
+					Headers:            map[string]string{"Content-Type": "application/json", "X-Custom-Header": "value123"},
+					HostID:             "",
+				},
+			},
+		},
+		{
 			name: "firehose-endpoint command",
 			args: []string{"firehose-endpoint", "-p", "9000"},
 			expected: &CLI{
