@@ -11,12 +11,12 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/alecthomas/kong"
 	golambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/fujiwara/maprobe"
 	gops "github.com/google/gops/agent"
 	"github.com/hashicorp/logutils"
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 func init() {
@@ -30,64 +30,12 @@ var (
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
 	}
-
-	app         = kingpin.New("maprobe", "")
-	logLevel    = app.Flag("log-level", "log level").Default("info").OverrideDefaultFromEnvar("LOG_LEVEL").String()
-	gopsEnabled = app.Flag("gops", "enable gops agent").Default("false").OverrideDefaultFromEnvar("GOPS").Bool()
-
-	version = app.Command("version", "Show version")
-
-	agent                     = app.Command("agent", "Run agent")
-	agentConfig               = agent.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
-	agentWithFirehoseEndpoint = agent.Flag("with-firehose-endpoint", "run with firehose HTTP endpoint server").Bool()
-	agentPort                 = agent.Flag("port", "firehose HTTP endpoint listen port").Default("8080").Int()
-
-	once       = app.Command("once", "Run once")
-	onceConfig = once.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
-
-	lambda       = app.Command("lambda", "Run on AWS Lambda like once mode")
-	lambdaConfig = lambda.Flag("config", "configuration file path or URL(http|s3)").Short('c').OverrideDefaultFromEnvar("CONFIG").String()
-
-	ping        = app.Command("ping", "Run ping probe")
-	pingAddress = ping.Arg("address", "Hostname or IP address").Required().String()
-	pingCount   = ping.Flag("count", "Iteration count").Short('c').Int()
-	pingTimeout = ping.Flag("timeout", "Timeout to ping response").Short('t').Duration()
-	pingHostID  = ping.Flag("host-id", "Mackerel host ID").Short('i').String()
-
-	tcp                   = app.Command("tcp", "Run TCP probe")
-	tcpHost               = tcp.Arg("host", "Hostname or IP address").Required().String()
-	tcpPort               = tcp.Arg("port", "Port number").Required().String()
-	tcpSend               = tcp.Flag("send", "String to send to the server").Short('s').String()
-	tcpQuit               = tcp.Flag("quit", "String to send server to initiate a clean close of the connection").Short('q').String()
-	tcpTimeout            = tcp.Flag("timeout", "Timeout").Short('t').Duration()
-	tcpExpectPattern      = tcp.Flag("expect", "Regexp pattern to expect in server response").Short('e').String()
-	tcpNoCheckCertificate = tcp.Flag("no-check-certificate", "Do not check certificate").Short('k').Bool()
-	tcpHostID             = tcp.Flag("host-id", "Mackerel host ID").Short('i').String()
-	tcpTLS                = tcp.Flag("tls", "Use TLS").Bool()
-
-	http                   = app.Command("http", "Run HTTP probe")
-	httpURL                = http.Arg("url", "URL").Required().String()
-	httpMethod             = http.Flag("method", "Request method").Default("GET").Short('m').String()
-	httpBody               = http.Flag("body", "Request body").Short('b').String()
-	httpExpectPattern      = http.Flag("expect", "Regexp pattern to expect in server response").Short('e').String()
-	httpTimeout            = http.Flag("timeout", "Timeout").Short('t').Duration()
-	httpNoCheckCertificate = http.Flag("no-check-certificate", "Do not check certificate").Short('k').Bool()
-	httpHeaders            = HTTPHeader(http.Flag("header", "Request headers").Short('H').PlaceHolder("Header: Value"))
-	httpHostID             = http.Flag("host-id", "Mackerel host ID").Short('i').String()
-
-	firehoseEndpoint     = app.Command("firehose-endpoint", "Run Firehose HTTP endpoint")
-	firehoseEndpointPort = firehoseEndpoint.Flag("port", "Listen port").Default("8080").Short('p').Int()
 )
 
 func main() {
-	log.Println("[info] maprobe", maprobe.Version)
+	var cli maprobe.CLI
 
-	if *gopsEnabled {
-		if err := gops.Listen(gops.Options{}); err != nil {
-			log.Fatal(err)
-		}
-	}
-
+	// Parse command line arguments
 	var args []string
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// detect running on AWS Lambda
@@ -96,15 +44,30 @@ func main() {
 	} else {
 		args = os.Args[1:]
 	}
-	sub, err := app.Parse(args)
+
+	parser, err := kong.New(&cli)
+	if err != nil {
+		log.Println("[error]", err)
+		os.Exit(1)
+	}
+	
+	kongCtx, err := parser.Parse(args)
 	if err != nil {
 		log.Println("[error]", err)
 		os.Exit(1)
 	}
 
+	log.Println("[info] maprobe", maprobe.Version)
+
+	if cli.GopsEnabled {
+		if err := gops.Listen(gops.Options{}); err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	filter := &logutils.LevelFilter{
 		Levels:   []logutils.LogLevel{"trace", "debug", "info", "warn", "error"},
-		MinLevel: logutils.LogLevel(*logLevel),
+		MinLevel: logutils.LogLevel(cli.LogLevel),
 		Writer:   os.Stderr,
 	}
 	log.SetOutput(filter)
@@ -115,10 +78,11 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	cmdName := kongCtx.Command()
 	sigCount := 0
 	go func() {
 		for sig := range sigCh {
-			if sub == "agent" {
+			if cmdName == "agent" {
 				log.Println("[info] SIGNAL", sig, "shutting down")
 			} else {
 				log.Println("[debug] SIGNAL", sig, "shutting down")
@@ -133,58 +97,58 @@ func main() {
 	}()
 
 	var wg sync.WaitGroup
-	switch sub {
+	switch cmdName {
 	case "version":
 		fmt.Printf("maprobe version %s\n", maprobe.Version)
 		return
 	case "agent":
-		if *agentWithFirehoseEndpoint {
+		if cli.Agent.WithFirehoseEndpoint {
 			wg.Add(1)
-			go maprobe.RunFirehoseEndpoint(ctx, &wg, *agentPort)
+			go maprobe.RunFirehoseEndpoint(ctx, &wg, cli.Agent.Port)
 		}
 		wg.Add(1)
-		err = maprobe.Run(ctx, &wg, *agentConfig, false)
+		err = maprobe.Run(ctx, &wg, cli.Agent.Config, false)
 	case "once":
 		wg.Add(1)
-		err = maprobe.Run(ctx, &wg, *onceConfig, true)
+		err = maprobe.Run(ctx, &wg, cli.Once.Config, true)
 	case "lambda":
-		log.Println("[info] Running on AWS Lambda with config", *lambdaConfig)
-		golambda.StartWithOptions(func(ctx context.Context) error {
+		log.Println("[info] Running on AWS Lambda with config", cli.Lambda.Config)
+		golambda.StartWithOptions(func(lambdaCtx context.Context) error {
 			wg.Add(1)
-			return maprobe.Run(ctx, &wg, *lambdaConfig, true)
+			return maprobe.Run(lambdaCtx, &wg, cli.Lambda.Config, true)
 		}, golambda.WithContext(ctx))
 	case "ping":
-		err = runProbe(ctx, *pingHostID, &maprobe.PingProbeConfig{
-			Address: *pingAddress,
-			Count:   *pingCount,
-			Timeout: *pingTimeout,
+		err = runProbe(ctx, cli.Ping.HostID, &maprobe.PingProbeConfig{
+			Address: cli.Ping.Address,
+			Count:   cli.Ping.Count,
+			Timeout: cli.Ping.Timeout,
 		})
 	case "tcp":
-		err = runProbe(ctx, *tcpHostID, &maprobe.TCPProbeConfig{
-			Host:               *tcpHost,
-			Port:               *tcpPort,
-			Timeout:            *tcpTimeout,
-			Send:               *tcpSend,
-			Quit:               *tcpQuit,
-			ExpectPattern:      *tcpExpectPattern,
-			NoCheckCertificate: *tcpNoCheckCertificate,
-			TLS:                *tcpTLS,
+		err = runProbe(ctx, cli.TCP.HostID, &maprobe.TCPProbeConfig{
+			Host:               cli.TCP.Host,
+			Port:               cli.TCP.Port,
+			Timeout:            cli.TCP.Timeout,
+			Send:               cli.TCP.Send,
+			Quit:               cli.TCP.Quit,
+			ExpectPattern:      cli.TCP.ExpectPattern,
+			NoCheckCertificate: cli.TCP.NoCheckCertificate,
+			TLS:                cli.TCP.TLS,
 		})
 	case "http":
-		err = runProbe(ctx, *httpHostID, &maprobe.HTTPProbeConfig{
-			URL:                *httpURL,
-			Method:             *httpMethod,
-			Body:               *httpBody,
-			Headers:            httpHeaders.Value,
-			Timeout:            *httpTimeout,
-			ExpectPattern:      *httpExpectPattern,
-			NoCheckCertificate: *httpNoCheckCertificate,
+		err = runProbe(ctx, cli.HTTP.HostID, &maprobe.HTTPProbeConfig{
+			URL:                cli.HTTP.URL,
+			Method:             cli.HTTP.Method,
+			Body:               cli.HTTP.Body,
+			Headers:            cli.HTTP.Headers,
+			Timeout:            cli.HTTP.Timeout,
+			ExpectPattern:      cli.HTTP.ExpectPattern,
+			NoCheckCertificate: cli.HTTP.NoCheckCertificate,
 		})
 	case "firehose-endpoint":
 		wg.Add(1)
-		maprobe.RunFirehoseEndpoint(ctx, &wg, *firehoseEndpointPort)
+		maprobe.RunFirehoseEndpoint(ctx, &wg, cli.FirehoseEndpoint.Port)
 	default:
-		err = fmt.Errorf("command %s not exist", sub)
+		err = fmt.Errorf("command %s not exist", cmdName)
 	}
 	wg.Wait()
 	log.Println("[info] shutdown")
@@ -230,35 +194,6 @@ func runProbe(ctx context.Context, id string, pc maprobe.ProbeConfig) error {
 	return nil
 }
 
-type httpHeader struct {
-	Value map[string]string
-}
-
-func (h *httpHeader) IsCumulative() bool {
-	return true
-}
-
-func (h *httpHeader) Set(value string) error {
-	pairs := strings.SplitN(value, ":", 2)
-	if len(pairs) != 2 {
-		return fmt.Errorf("expected 'Header:Value' got '%s'", value)
-	}
-	name, value := pairs[0], strings.TrimLeft(pairs[1], " ")
-	h.Value[name] = value
-	return nil
-}
-
-func (h *httpHeader) String() string {
-	return fmt.Sprintf("%v", h.Value)
-}
-
-func HTTPHeader(s kingpin.Settings) (target *httpHeader) {
-	target = &httpHeader{
-		Value: make(map[string]string),
-	}
-	s.SetValue((*httpHeader)(target))
-	return
-}
 
 func marshalJSON(i interface{}) string {
 	b, _ := json.Marshal(i)
