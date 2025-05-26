@@ -15,8 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/goccy/go-yaml"
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"gopkg.in/yaml.v2"
 )
 
 type Config struct {

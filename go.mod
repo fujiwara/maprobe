@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-lambda-go v1.48.0
 	github.com/aws/aws-sdk-go v1.55.7
 	github.com/fujiwara/ridge v0.13.0
+	github.com/goccy/go-yaml v1.17.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gops v0.3.28
 	github.com/hashicorp/logutils v1.0.0
@@ -19,7 +20,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.36.0
 	go.opentelemetry.io/otel/sdk/metric v1.36.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
@@ -43,4 +43,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250519155744-55703ea1f237 // indirect
 	google.golang.org/grpc v1.72.1 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
