@@ -4,15 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
+	"fmt"
+
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -41,34 +42,34 @@ func (pc *HTTPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	var err error
 	p.URL, err = expandPlaceHolder(pc.URL, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid URL")
+		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 	if !strings.HasPrefix(p.URL, "http://") && !strings.HasPrefix(p.URL, "https://") {
-		return nil, errors.New("invalid URL " + p.URL)
+		return nil, fmt.Errorf("invalid URL %s", p.URL)
 	}
 
 	p.Headers = make(map[string]string, len(pc.Headers))
 	for name, value := range pc.Headers {
 		p.Headers[name], err = expandPlaceHolder(value, host, nil)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid header "+name)
+			return nil, fmt.Errorf("invalid header %s: %w", name, err)
 		}
 	}
 
 	p.Body, err = expandPlaceHolder(pc.Body, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid body")
+		return nil, fmt.Errorf("invalid body: %w", err)
 	}
 
 	var pattern string
 	pattern, err = expandPlaceHolder(pc.ExpectPattern, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid expect_pattern")
+		return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 	}
 	if pattern != "" {
 		p.ExpectPattern, err = regexp.Compile(pattern)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid expect_pattern")
+			return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 		}
 	}
 
@@ -157,16 +158,16 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		ok = false
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("[warn] HTTP read body failed", err)
-		return ms, errors.Wrap(err, "read body failed")
+		return ms, fmt.Errorf("read body failed: %w", err)
 	}
 	ms = append(ms, newMetric(p, "content.length", float64(len(body))))
 
 	if p.ExpectPattern != nil {
 		if !p.ExpectPattern.Match(body) {
-			return ms, errors.Wrap(err, "unexpected response")
+			return ms, fmt.Errorf("unexpected response")
 		}
 	}
 

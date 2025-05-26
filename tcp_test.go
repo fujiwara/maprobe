@@ -100,8 +100,9 @@ func TestTCPFail(t *testing.T) {
 		t.Error(err)
 	}
 	ms, err := probe.Run(context.Background())
-	if err != nil {
-		t.Error(err)
+	if err == nil {
+		t.Error("expected error, but got nil")
+		return
 	}
 	if len(ms) != 2 {
 		t.Error("unexpected metrics num")

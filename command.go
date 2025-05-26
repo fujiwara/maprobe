@@ -18,7 +18,6 @@ import (
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
 )
 
 const CustomPrefix = "custom."
@@ -39,25 +38,25 @@ func (pc *CommandProbeConfig) initialize() error {
 	switch c := pc.RawCommand.(type) {
 	case []interface{}:
 		if len(c) == 0 {
-			return errors.Errorf("command is empty array")
+			return fmt.Errorf("command is empty array")
 		}
 		for _, v := range c {
 			switch s := v.(type) {
 			case string:
 				pc.command = append(pc.command, s)
 			default:
-				return errors.Errorf("command must be array of string")
+				return fmt.Errorf("command must be array of string")
 			}
 		}
 	case string:
 		if len(c) == 0 {
-			return errors.Errorf("command is empty string")
+			return fmt.Errorf("command is empty string")
 		}
 		pc.command = []string{c}
 	case nil:
-		return errors.Errorf("command is empty")
+		return fmt.Errorf("command is empty")
 	default:
-		return errors.Errorf("invalid command: %#v", pc.RawCommand)
+		return fmt.Errorf("invalid command: %#v", pc.RawCommand)
 	}
 	return nil
 }
@@ -73,7 +72,7 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 	for i, c := range pc.command {
 		p.Command[i], err = expandPlaceHolder(c, host, pc.Env)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid command")
+			return nil, fmt.Errorf("invalid command: %w", err)
 		}
 	}
 
@@ -138,7 +137,7 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	var cmd *exec.Cmd
 	switch len(p.Command) {
 	case 0:
-		return nil, errors.New("no command")
+		return nil, fmt.Errorf("no command")
 	case 1:
 		cmd = exec.CommandContext(ctx, p.Command[0])
 	default:
@@ -154,12 +153,12 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	cmd.WaitDelay = 5 * time.Second // SIGKILL after 5 seconds
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return ms, errors.Wrap(err, "stdout open failed")
+		return ms, fmt.Errorf("stdout open failed: %w", err)
 	}
 	scanner := bufio.NewScanner(stdout)
 
 	if err := cmd.Start(); err != nil {
-		return ms, errors.Wrap(err, fmt.Sprintf("command execute failed. %s", strings.Join(p.Command, " ")))
+		return ms, fmt.Errorf("command execute failed. %s: %w", strings.Join(p.Command, " "), err)
 	}
 
 	for scanner.Scan() {
@@ -177,7 +176,7 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 
 	err = cmd.Wait()
 	if e, ok := err.(*exec.ExitError); ok {
-		return ms, errors.Wrap(e, "command execute failed")
+		return ms, fmt.Errorf("command execute failed: %w", e)
 	}
 
 	return ms, nil
@@ -236,7 +235,7 @@ func (p *CommandProbe) PostGraphDefs(client *mackerel.Client, pc *CommandProbeCo
 	log.Println("[trace] create to graph defs", string(b))
 	if err := client.CreateGraphDefs(payloads); err != nil {
 		// When failed to post to Mackerel, graphDefsPosted shouldnot be stored.
-		return errors.Wrap(err, "could not create graph defs")
+		return fmt.Errorf("could not create graph defs: %w", err)
 	}
 	log.Printf("[info] success to create graph defs for %v", p.Command)
 
@@ -258,16 +257,16 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, errors.Wrap(err, "stdout open failed")
+		return nil, fmt.Errorf("stdout open failed: %w", err)
 	}
 	r := bufio.NewReader(stdout)
 	if err := cmd.Start(); err != nil {
-		return nil, errors.Wrap(err, "command execute failed")
+		return nil, fmt.Errorf("command execute failed: %w", err)
 	}
 
 	header, err := r.ReadBytes('\n')
 	if err != nil {
-		return nil, errors.Wrap(err, "could not fetch a first line")
+		return nil, fmt.Errorf("could not fetch a first line: %w", err)
 	}
 	if !bytes.Equal(header, pluginMetaHeaderLine) {
 		// invalid header
@@ -276,7 +275,7 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 
 	var out GraphsOutput
 	if err := json.NewDecoder(r).Decode(&out); err != nil {
-		return nil, errors.Wrap(err, "could not decode graph defs output")
+		return nil, fmt.Errorf("could not decode graph defs output: %w", err)
 	}
 	return &out, nil
 }
@@ -284,11 +283,11 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 func parseMetricLine(b string) (Metric, error) {
 	cols := strings.SplitN(b, "\t", 3)
 	if len(cols) < 3 {
-		return Metric{}, errors.New("invalid metric format. insufficient columns")
+		return Metric{}, fmt.Errorf("invalid metric format. insufficient columns")
 	}
 	name, value, timestamp := cols[0], cols[1], cols[2]
 	if name == "" {
-		return Metric{}, errors.New("invalid metric format. name is empty")
+		return Metric{}, fmt.Errorf("invalid metric format. name is empty")
 	}
 	m := Metric{
 		Name: name,

@@ -15,9 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/goccy/go-yaml"
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -95,7 +94,7 @@ type ProbeDefinition struct {
 func (pd *ProbeDefinition) Validate() error {
 	if pd.IsServiceMetric {
 		if pd.Role.Value != "" || len(pd.Roles) > 0 || len(pd.Statuses) > 0 {
-			return errors.Errorf("probe for service metric cannot have role or roles or statuses")
+			return fmt.Errorf("probe for service metric cannot have role or roles or statuses")
 		}
 	}
 	return nil
@@ -160,13 +159,13 @@ func LoadConfig(location string) (*Config, string, error) {
 	}
 	b, err := c.fetch()
 	if err != nil {
-		return nil, "", errors.Wrap(err, "load config failed")
+		return nil, "", fmt.Errorf("load config failed: %w", err)
 	}
 	if err := yaml.Unmarshal(b, c); err != nil {
-		return nil, "", errors.Wrap(err, "yaml parse failed")
+		return nil, "", fmt.Errorf("yaml parse failed: %w", err)
 	}
 	if err := c.initialize(); err != nil {
-		return nil, "", errors.Wrap(err, "config initialize failed")
+		return nil, "", fmt.Errorf("config initialize failed: %w", err)
 	}
 	return c, fmt.Sprintf("%x", sha256.Sum256(b)), c.validate()
 }
