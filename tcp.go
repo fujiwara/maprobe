@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -46,28 +46,28 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 
 	p.Host, err = expandPlaceHolder(pc.Host, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid host")
+		return nil, fmt.Errorf("invalid host: %w", err)
 	}
 
 	p.Port, err = expandPlaceHolder(pc.Port, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invaild port")
+		return nil, fmt.Errorf("invaild port: %w", err)
 	}
 
 	p.Send, err = expandPlaceHolder(pc.Send, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid send")
+		return nil, fmt.Errorf("invalid send: %w", err)
 	}
 
 	var pattern string
 	pattern, err = expandPlaceHolder(pc.ExpectPattern, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid expect_pattern")
+		return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 	}
 	if pattern != "" {
 		p.ExpectPattern, err = regexp.Compile(pattern)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid expect_pattern")
+			return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 		}
 	}
 
@@ -130,7 +130,7 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 	log.Println("[debug] dialing", addr)
 	conn, err := dialTCP(ctx, addr, p.TLS, p.NoCheckCertificate, p.Timeout)
 	if err != nil {
-		return ms, errors.Wrap(err, "connect failed")
+		return ms, fmt.Errorf("connect failed: %w", err)
 	}
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(p.Timeout))
@@ -140,7 +140,7 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		log.Println("[debug] send", p.Send)
 		_, err := io.WriteString(conn, p.Send)
 		if err != nil {
-			return ms, errors.Wrap(err, "send failed")
+			return ms, fmt.Errorf("send failed: %w", err)
 		}
 	}
 	if p.ExpectPattern != nil {
@@ -148,12 +148,12 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		r := bufio.NewReader(conn)
 		n, err := r.Read(buf)
 		if err != nil {
-			return ms, errors.Wrap(err, "read failed")
+			return ms, fmt.Errorf("read failed: %w", err)
 		}
 		log.Println("[debug] read", string(buf[:n]))
 
 		if !p.ExpectPattern.Match(buf[:n]) {
-			return ms, errors.Wrap(err, "unexpected response")
+			return ms, fmt.Errorf("unexpected response")
 		}
 	}
 	if p.Quit != "" {

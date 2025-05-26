@@ -8,7 +8,7 @@ import (
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
+	"fmt"
 	fping "github.com/tatsushid/go-fastping"
 )
 
@@ -37,7 +37,7 @@ func (pc *PingProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 		p.Address = addr
 	}
 	if p.Address == "" {
-		return nil, errors.New("no address")
+		return nil, fmt.Errorf("no address")
 	}
 
 	if p.Count == 0 {
@@ -78,7 +78,7 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	if err != nil {
 		ms = append(ms, newMetric(p, "count.success", 0))
 		ms = append(ms, newMetric(p, "count.failure", 1))
-		return ms, errors.Wrap(err, "resolve failed")
+		return ms, fmt.Errorf("resolve failed: %w", err)
 	}
 	log.Printf("[debug] %s resolved to %s", p.Address, ipaddr)
 	pinger.AddIPAddr(ipaddr)
