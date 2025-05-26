@@ -51,7 +51,7 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 
 	p.Port, err = expandPlaceHolder(pc.Port, host, nil)
 	if err != nil {
-		return nil, fmt.Errorf("invaild port: %w", err)
+		return nil, fmt.Errorf("invalid port: %w", err)
 	}
 
 	p.Send, err = expandPlaceHolder(pc.Send, host, nil)
