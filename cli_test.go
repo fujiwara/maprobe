@@ -249,6 +249,43 @@ func TestCLIParsing(t *testing.T) {
 			},
 		},
 		{
+			name: "http command with legacy --header flag",
+			args: []string{"http", "https://example.com", "--header", "Content-Type=application/json"},
+			expected: &CLI{
+				LogLevel:    "info",
+				GopsEnabled: false,
+				HTTP: HTTPCmd{
+					URL:                "https://example.com",
+					Method:             "GET",
+					Body:               "",
+					ExpectPattern:      "",
+					Timeout:            0,
+					NoCheckCertificate: false,
+					Headers:            map[string]string{"Content-Type": "application/json"},
+					HostID:             "",
+				},
+			},
+		},
+		{
+			name: "tcp command with legacy --expect flag",
+			args: []string{"tcp", "example.com", "80", "--expect", "200 OK"},
+			expected: &CLI{
+				LogLevel:    "info",
+				GopsEnabled: false,
+				TCP: TCPCmd{
+					Host:               "example.com",
+					Port:               "80",
+					Send:               "",
+					Quit:               "",
+					Timeout:            0,
+					ExpectPattern:      "200 OK",
+					NoCheckCertificate: false,
+					HostID:             "",
+					TLS:                false,
+				},
+			},
+		},
+		{
 			name: "firehose-endpoint command",
 			args: []string{"firehose-endpoint", "-p", "9000"},
 			expected: &CLI{

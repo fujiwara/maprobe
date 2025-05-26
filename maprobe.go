@@ -73,7 +73,7 @@ type TCPCmd struct {
 	Send               string        `short:"s" help:"String to send to the server"`
 	Quit               string        `short:"q" help:"String to send server to initiate a clean close of the connection"`
 	Timeout            time.Duration `short:"t" help:"Timeout"`
-	ExpectPattern      string        `short:"e" help:"Regexp pattern to expect in server response"`
+	ExpectPattern      string        `short:"e" name:"expect" help:"Regexp pattern to expect in server response"`
 	NoCheckCertificate bool          `short:"k" help:"Do not check certificate"`
 	HostID             string        `short:"i" help:"Mackerel host ID"`
 	TLS                bool          `help:"Use TLS"`
@@ -83,10 +83,10 @@ type HTTPCmd struct {
 	URL                string            `arg:"" help:"URL" required:""`
 	Method             string            `short:"m" help:"Request method" default:"GET"`
 	Body               string            `short:"b" help:"Request body"`
-	ExpectPattern      string            `short:"e" help:"Regexp pattern to expect in server response"`
+	ExpectPattern      string            `short:"e" name:"expect" help:"Regexp pattern to expect in server response"`
 	Timeout            time.Duration     `short:"t" help:"Timeout"`
 	NoCheckCertificate bool              `short:"k" help:"Do not check certificate"`
-	Headers            map[string]string `short:"H" help:"Request headers" placeholder:"Header: Value"`
+	Headers            map[string]string `short:"H" name:"header" help:"Request headers" placeholder:"Header: Value"`
 	HostID             string            `short:"i" help:"Mackerel host ID"`
 }
 
