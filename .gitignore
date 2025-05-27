@@ -16,3 +16,17 @@ vendor/
 *~
 dist/
 .envrc
+
+# Binary executables
+/maprobe
+cmd/maprobe/maprobe
+cmd/maprobe/maprobe-new
+
+# Config files (keep examples)
+config.yaml
+
+# Claude Code settings
+.claude/settings.local.json
+
+# Example data files
+example/data/
