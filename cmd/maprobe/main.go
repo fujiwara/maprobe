@@ -45,17 +45,7 @@ func main() {
 		args = os.Args[1:]
 	}
 
-	parser, err := kong.New(&cli)
-	if err != nil {
-		log.Println("[error]", err)
-		os.Exit(1)
-	}
-	
-	kongCtx, err := parser.Parse(args)
-	if err != nil {
-		log.Println("[error]", err)
-		os.Exit(1)
-	}
+	kongCtx := kong.Parse(&cli, kong.Args(args...))
 
 	log.Println("[info] maprobe", maprobe.Version)
 
