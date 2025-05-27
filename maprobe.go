@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"net/url"
 	"sync"
@@ -32,6 +32,7 @@ var (
 // CLI defines the command line interface structure for Kong
 type CLI struct {
 	LogLevel    string `name:"log-level" help:"log level" default:"info" env:"LOG_LEVEL"`
+	LogFormat   string `name:"log-format" help:"log format (text|json)" default:"text" enum:"text,json" env:"LOG_FORMAT"`
 	GopsEnabled bool   `name:"gops" help:"enable gops agent" default:"false" env:"GOPS"`
 
 	Version          VersionCmd          `cmd:"" help:"Show version"`
@@ -110,24 +111,24 @@ var retryPolicy = retry.Policy{
 
 func lock() {
 	sem <- struct{}{}
-	log.Printf("[trace] locked. concurrency: %d", len(sem))
+	slog.Debug("locked", "concurrency", len(sem))
 }
 
 func unlock() {
 	<-sem
-	log.Printf("[trace] unlocked. concurrency: %d", len(sem))
+	slog.Debug("unlocked", "concurrency", len(sem))
 }
 
 func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) error {
 	defer wg.Done()
-	defer log.Println("[info] stopping maprobe")
+	defer slog.Info("stopping maprobe")
 
-	log.Println("[info] starting maprobe")
+	slog.Info("starting maprobe")
 	conf, confDigest, err := LoadConfig(configPath)
 	if err != nil {
 		return err
 	}
-	log.Println("[debug]", conf.String())
+	slog.Debug("config", "config", conf.String())
 	client := newClient(MackerelAPIKey, conf.Backup.FirehoseStreamName)
 
 	chs := NewChannels(conf.Destination)
@@ -187,23 +188,23 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			return nil
 		}
 
-		log.Println("[debug] waiting for a next tick")
+		slog.Debug("waiting for a next tick")
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
 		}
 
-		log.Println("[debug] checking a new config")
+		slog.Debug("checking a new config")
 		newConf, digest, err := LoadConfig(configPath)
 		if err != nil {
-			log.Println("[warn]", err)
-			log.Println("[warn] still using current config")
+			slog.Warn("config load failed", "error", err)
+			slog.Warn("still using current config")
 		} else if confDigest != digest {
 			conf = newConf
 			confDigest = digest
-			log.Println("[info] config reloaded")
-			log.Println("[debug]", conf)
+			slog.Info("config reloaded")
+			slog.Debug("reloaded config", "config", conf)
 		}
 	}
 }
@@ -214,12 +215,7 @@ func runAggregates(_ context.Context, ag *AggregateDefinition, client *Client, c
 	service := ag.Service.String()
 	roles := exStrings(ag.Roles)
 	statuses := exStrings(ag.Statuses)
-	log.Printf(
-		"[debug] aggregates finding hosts service:%s roles:%s statuses:%v",
-		service,
-		roles,
-		statuses,
-	)
+	slog.Debug("aggregates finding hosts", "service", service, "roles", roles, "statuses", statuses)
 
 	hosts, err := client.FindHosts(&mackerel.FindHostsParam{
 		Service:  service,
@@ -227,10 +223,10 @@ func runAggregates(_ context.Context, ag *AggregateDefinition, client *Client, c
 		Statuses: statuses,
 	})
 	if err != nil {
-		log.Println("[error] aggregates find hosts failed", err)
+		slog.Error("aggregates find hosts failed", "error", err)
 		return
 	}
-	log.Printf("[debug] aggregates %d hosts found", len(hosts))
+	slog.Debug("aggregates hosts found", "count", len(hosts))
 
 	hostIDs := make([]string, 0, len(hosts))
 	for _, h := range hosts {
@@ -241,13 +237,13 @@ func runAggregates(_ context.Context, ag *AggregateDefinition, client *Client, c
 		metricNames = append(metricNames, m.Name.String())
 	}
 
-	log.Printf("[debug] fetching latest metrics hosts:%v metrics:%v", hostIDs, metricNames)
+	slog.Debug("fetching latest metrics", "hosts", hostIDs, "metrics", metricNames)
 
 	// TODO: If latest API will returns metrics refreshed at on minute,
 	// We will replace to client.FetchLatestMetricValues().
 	latest, err := client.fetchLatestMetricValues(hostIDs, metricNames)
 	if err != nil {
-		log.Printf("[error] fetch latest metrics failed. %s hosts:%v metrics:%v", err, hostIDs, metricNames)
+		slog.Error("fetch latest metrics failed", "error", err, "hosts", hostIDs, "metrics", metricNames)
 		return
 	}
 
@@ -259,28 +255,28 @@ func runAggregates(_ context.Context, ag *AggregateDefinition, client *Client, c
 		for hostID, metrics := range latest {
 			if _v, ok := metrics[name]; ok {
 				if _v == nil {
-					log.Printf("[trace] latest %s:%s is not found", hostID, name)
+					slog.Debug("latest metric not found", "host", hostID, "metric", name)
 					continue
 				}
 				v, ok := _v.Value.(float64)
 				if !ok {
-					log.Printf("[warn] latest %s:%s = %v is not a float64 value", hostID, name, _v)
+					slog.Warn("latest metric not float64", "host", hostID, "metric", name, "value", _v)
 					continue
 				}
 				ts := time.Unix(_v.Time, 0)
-				log.Printf("[trace] latest %s:%s:%d = %f", hostID, name, _v.Time, v)
+				slog.Debug("latest metric", "host", hostID, "metric", name, "time", _v.Time, "value", v)
 				if ts.After(now.Add(metricTimeMargin)) {
 					values = append(values, v)
 					if _v.Time > timestamp {
 						timestamp = _v.Time
 					}
 				} else {
-					log.Printf("[warn] latest %s:%s at %s is outdated", hostID, name, ts)
+					slog.Warn("latest metric outdated", "host", hostID, "metric", name, "time", ts)
 				}
 			}
 		}
 		if len(hosts) > 0 && len(values) == 0 {
-			log.Printf("[warn] %s:%s latest values are not found", ag.Service, mc.Name)
+			slog.Warn("latest values not found", "service", ag.Service, "metric", mc.Name)
 		}
 
 		for _, output := range mc.Outputs {
@@ -293,11 +289,7 @@ func runAggregates(_ context.Context, ag *AggregateDefinition, client *Client, c
 			} else {
 				value = output.calc(values)
 			}
-			log.Printf("[debug] aggregates %s(%s)=%f -> %s:%s timestamp %d",
-				output.Func, name, value,
-				ag.Service, output.Name,
-				timestamp,
-			)
+			slog.Debug("aggregates result", "func", output.Func, "input", name, "value", value, "service", ag.Service, "output", output.Name, "timestamp", timestamp)
 			m := Metric{
 				Name:      output.Name.String(),
 				Value:     value,
@@ -309,7 +301,7 @@ func runAggregates(_ context.Context, ag *AggregateDefinition, client *Client, c
 }
 
 func postHostMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Client, chs *Channels) {
-	log.Println("[info] starting postHostMetricWorker")
+	slog.Info("starting postHostMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
 	mvs := make([]*mackerel.HostMetricValue, 0, PostMetricBufferLength)
@@ -323,7 +315,7 @@ func postHostMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Clien
 					continue
 				}
 			} else {
-				log.Println("[info] shutting down postHostMetricWorker")
+				slog.Info("shutting down postHostMetricWorker")
 				run = false
 			}
 		case <-ticker.C:
@@ -331,23 +323,23 @@ func postHostMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Clien
 		if len(mvs) == 0 {
 			continue
 		}
-		log.Printf("[debug] posting %d host metrics to Mackerel", len(mvs))
+		slog.Debug("posting host metrics to Mackerel", "count", len(mvs))
 		b, _ := json.Marshal(mvs)
-		log.Println("[debug]", string(b))
+		slog.Debug("host metrics payload", "payload", string(b))
 		if err := doRetry(ctx, func() error {
 			return client.PostHostMetricValues(mvs)
 		}); err != nil {
-			log.Printf("[error] failed to post host metrics to Mackerel %s", err)
+			slog.Error("failed to post host metrics to Mackerel", "error", err)
 			continue
 		}
-		log.Printf("[debug] post host metrics succeeded.")
+		slog.Debug("post host metrics succeeded")
 		// success. reset buffer
 		mvs = mvs[:0]
 	}
 }
 
 func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Client, chs *Channels) {
-	log.Println("[info] starting postServiceMetricWorker")
+	slog.Info("starting postServiceMetricWorker")
 	defer wg.Done()
 	ticker := time.NewTicker(10 * time.Second)
 	mvsMap := make(map[string][]*mackerel.MetricValue)
@@ -357,10 +349,7 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 		case m, cont := <-chs.ServiceMetrics:
 			if cont {
 				if math.IsNaN(m.Value) {
-					log.Printf(
-						"[warn] %s:%s value NaN is not supported by Mackerel",
-						m.Service, m.Name,
-					)
+					slog.Warn("NaN value not supported by Mackerel", "service", m.Service, "metric", m.Name)
 					continue
 				} else {
 					mvsMap[m.Service] = append(mvsMap[m.Service], m.MetricValue())
@@ -369,7 +358,7 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 					continue
 				}
 			} else {
-				log.Println("[info] shutting down postServiceMetricWorker")
+				slog.Info("shutting down postServiceMetricWorker")
 				run = false
 			}
 		case <-ticker.C:
@@ -379,16 +368,16 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 			if len(mvs) == 0 {
 				continue
 			}
-			log.Printf("[debug] posting %d service metrics to Mackerel:%s", len(mvs), serviceName)
+			slog.Debug("posting service metrics to Mackerel", "count", len(mvs), "service", serviceName)
 			b, _ := json.Marshal(mvs)
-			log.Println("[debug]", string(b))
+			slog.Debug("service metrics payload", "payload", string(b))
 			if err := doRetry(ctx, func() error {
 				return client.PostServiceMetricValues(serviceName, mvs)
 			}); err != nil {
-				log.Printf("[error] failed to post service metrics to Mackerel:%s %s", serviceName, err)
+				slog.Error("failed to post service metrics to Mackerel", "service", serviceName, "error", err)
 				continue
 			}
-			log.Printf("[debug] post service succeeded.")
+			slog.Debug("post service succeeded")
 			// success. reset buffer
 			mvs = mvs[:0]
 			mvsMap[serviceName] = mvs
@@ -400,11 +389,11 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels
 	defer wg.Done()
 	exporter, endpointURL, err := newOtelExporter(ctx, oc)
 	if err != nil {
-		log.Printf("[error] failed to create OpenTelemetry meter exporter: %v", err)
+		slog.Error("failed to create OpenTelemetry meter exporter", "error", err)
 		return
 	}
 	defer exporter.Shutdown(ctx)
-	log.Printf("[info] starting postOtelMetricWorker endpoint %s", endpointURL)
+	slog.Info("starting postOtelMetricWorker", "endpoint", endpointURL)
 	attrs := otelresource.NewSchemaless()
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -415,12 +404,12 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels
 		case m, cont := <-chs.OtelMetrics:
 			if cont {
 				mvs = append(mvs, m.Otel())
-				log.Println("[debug][otel]", m.OtelString())
+				slog.Debug("otel metric", "metric", m.OtelString())
 				if len(mvs) < PostMetricBufferLength {
 					continue
 				}
 			} else {
-				log.Println("[info] shutting down postOtelMetricWorker")
+				slog.Info("shutting down postOtelMetricWorker")
 				run = false
 			}
 		case <-ticker.C:
@@ -428,7 +417,7 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels
 		if len(mvs) == 0 {
 			continue
 		}
-		log.Printf("[debug] posting %d otel metrics to %s", len(mvs), endpointURL)
+		slog.Debug("posting otel metrics", "count", len(mvs), "endpoint", endpointURL)
 		rms := &otelmetricdata.ResourceMetrics{
 			Resource: attrs,
 			ScopeMetrics: []otelmetricdata.ScopeMetrics{
@@ -438,10 +427,10 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels
 		if err := doRetry(ctx, func() error {
 			return exporter.Export(ctx, rms)
 		}); err != nil {
-			log.Printf("[error] failed to export otel metrics: %v", err)
+			slog.Error("failed to export otel metrics", "error", err)
 			continue
 		}
-		log.Printf("[debug] post otel metrics succeeded.")
+		slog.Debug("post otel metrics succeeded")
 		// success. reset buffer
 		mvs = mvs[:0]
 	}
@@ -476,27 +465,27 @@ func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Expor
 
 func dumpHostMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
-	log.Println("[info] starting dumpHostMetricWorker")
+	slog.Info("starting dumpHostMetricWorker")
 	for m := range chs.HostMetrics {
 		b, _ := json.Marshal(m.HostMetricValue())
-		log.Printf("[info][host] %s %s", m.HostID, b)
+		slog.Info("host metric", "host", m.HostID, "metric", string(b))
 	}
 }
 
 func dumpServiceMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
-	log.Println("[info] starting dumpServiceMetricWorker")
+	slog.Info("starting dumpServiceMetricWorker")
 	for m := range chs.ServiceMetrics {
 		b, _ := json.Marshal(m.MetricValue())
-		log.Printf("[info][service] %s %s", m.Service, b)
+		slog.Info("service metric", "service", m.Service, "metric", string(b))
 	}
 }
 
 func dumpOtelMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
 	defer wg.Done()
-	log.Println("[info] starting dumpOtelMetricWorker")
+	slog.Info("starting dumpOtelMetricWorker")
 	for m := range chs.OtelMetrics {
-		log.Printf("[info][otel] %s", m.OtelString())
+		slog.Info("otel metric", "metric", m.OtelString())
 	}
 }
 
@@ -512,7 +501,7 @@ func doRetry(ctx context.Context, f func() error) error {
 		if err == nil {
 			return nil
 		}
-		log.Printf("[warn] retrying: %s", err)
+		slog.Warn("retrying", "error", err)
 	}
 	if r.Err() != nil {
 		return r.Err()
