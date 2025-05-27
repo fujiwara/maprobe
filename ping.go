@@ -3,7 +3,7 @@ package maprobe
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net"
 	"time"
 
@@ -72,7 +72,7 @@ func (p *PingProbe) String() string {
 func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 	var ms Metrics
 
-	log.Printf("[debug] run ping to %s", p.Address)
+	slog.Debug("run ping", "address", p.Address)
 	pinger := fping.NewPinger()
 	ipaddr, err := net.ResolveIPAddr("ip", p.Address)
 	if err != nil {
@@ -80,14 +80,14 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		ms = append(ms, newMetric(p, "count.failure", 1))
 		return ms, fmt.Errorf("resolve failed: %w", err)
 	}
-	log.Printf("[debug] %s resolved to %s", p.Address, ipaddr)
+	slog.Debug("address resolved", "address", p.Address, "ipaddr", ipaddr)
 	pinger.AddIPAddr(ipaddr)
 
 	var min, max, total, avg time.Duration
 	var successCount, failureCount int
 	pinger.MaxRTT = p.Timeout
 	pinger.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
-		log.Println("[trace] OnRecv RTT", rtt)
+		slog.Debug("ping response received", "rtt", rtt)
 		successCount++
 		if min == 0 || max == 0 {
 			min = rtt
@@ -110,7 +110,7 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		err := pinger.Run()
 		if err != nil {
 			failureCount++
-			log.Printf("[warn] ping failed to %s(%s): %s", p.Address, ipaddr, err)
+			slog.Warn("ping failed", "address", p.Address, "ipaddr", ipaddr, "error", err)
 		}
 	}
 	if successCount != 0 {
@@ -124,7 +124,7 @@ func (p *PingProbe) Run(ctx context.Context) (Metrics, error) {
 		ms = append(ms, newMetric(p, "rtt.max", max.Seconds()))
 		ms = append(ms, newMetric(p, "rtt.avg", avg.Seconds()))
 	}
-	log.Println("[trace]", ms.String())
+	slog.Debug("ping probe completed", "metrics", ms.String())
 
 	return ms, nil
 }

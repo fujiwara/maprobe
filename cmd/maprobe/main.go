@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
@@ -14,8 +14,8 @@ import (
 	"github.com/alecthomas/kong"
 	golambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/fujiwara/maprobe"
+	"github.com/fujiwara/sloghandler"
 	gops "github.com/google/gops/agent"
-	"github.com/hashicorp/logutils"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
@@ -38,7 +38,7 @@ func main() {
 	var kongCtx *kong.Context
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// detect running on AWS Lambda
-		log.Println("[info] running on AWS Lambda")
+		slog.Info("running on AWS Lambda")
 		// Override os.Args for Lambda
 		originalArgs := os.Args
 		os.Args = []string{os.Args[0], "lambda"}
@@ -48,21 +48,17 @@ func main() {
 		kongCtx = kong.Parse(&cli)
 	}
 
-	log.Println("[info] maprobe", maprobe.Version)
+	// Setup structured logging
+	setupSlog(cli.LogLevel, cli.LogFormat)
+	
+	slog.Info("maprobe", "version", maprobe.Version)
 
 	if cli.GopsEnabled {
 		if err := gops.Listen(gops.Options{}); err != nil {
-			log.Fatal(err)
+			slog.Error("failed to start gops agent", "error", err)
+			os.Exit(1)
 		}
 	}
-
-	filter := &logutils.LevelFilter{
-		Levels:   []logutils.LogLevel{"trace", "debug", "info", "warn", "error"},
-		MinLevel: logutils.LogLevel(cli.LogLevel),
-		Writer:   os.Stderr,
-	}
-	log.SetOutput(filter)
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 
 	sigCh := make(chan os.Signal, 2)
 	signal.Notify(sigCh, trapSignals...)
@@ -76,9 +72,9 @@ func main() {
 	go func() {
 		for sig := range sigCh {
 			if cmdName == "agent" {
-				log.Println("[info] SIGNAL", sig, "shutting down")
+				slog.Info("signal received, shutting down", "signal", sig)
 			} else {
-				log.Println("[debug] SIGNAL", sig, "shutting down")
+				slog.Debug("signal received, shutting down", "signal", sig)
 			}
 			sigCount++
 			if sigCount >= 2 {
@@ -106,7 +102,7 @@ func main() {
 		wg.Add(1)
 		err = maprobe.Run(ctx, &wg, cli.Once.Config, true)
 	case "lambda":
-		log.Println("[info] Running on AWS Lambda with config", cli.Lambda.Config)
+		slog.Info("running on AWS Lambda", "config", cli.Lambda.Config)
 		golambda.StartWithOptions(func(lambdaCtx context.Context) error {
 			wg.Add(1)
 			return maprobe.Run(lambdaCtx, &wg, cli.Lambda.Config, true)
@@ -145,7 +141,7 @@ func main() {
 		err = fmt.Errorf("command %s does not exist", cmdName)
 	}
 	wg.Wait()
-	log.Println("[info] shutdown")
+	slog.Info("shutdown")
 	select {
 	case <-ctx.Done():
 		return
@@ -159,21 +155,21 @@ func main() {
 
 func mackerelHost(id string) (*mackerel.Host, error) {
 	if apikey := os.Getenv("MACKEREL_APIKEY"); id != "" && apikey != "" {
-		log.Printf("[debug] finding host id:%s", id)
+		slog.Debug("finding host", "id", id)
 		client := mackerel.NewClient(apikey)
 		return client.FindHost(id)
 	}
-	log.Printf("[debug] using dummy host")
+	slog.Debug("using dummy host")
 	return &mackerel.Host{ID: "dummy"}, nil
 }
 
 func runProbe(ctx context.Context, id string, pc maprobe.ProbeConfig) error {
-	log.Printf("[debug] %#v", pc)
+	slog.Debug("probe config", "config", fmt.Sprintf("%#v", pc))
 	host, err := mackerelHost(id)
 	if err != nil {
 		return err
 	}
-	log.Printf("[debug] host: %s", marshalJSON(host))
+	slog.Debug("host", "host", marshalJSON(host))
 	p, err := pc.GenerateProbe(host)
 	if err != nil {
 		return err
@@ -192,4 +188,43 @@ func runProbe(ctx context.Context, id string, pc maprobe.ProbeConfig) error {
 func marshalJSON(i interface{}) string {
 	b, _ := json.Marshal(i)
 	return string(b)
+}
+
+func setupSlog(logLevel, logFormat string) {
+	var level slog.Level
+	switch strings.ToLower(logLevel) {
+	case "trace", "debug":
+		level = slog.LevelDebug
+	case "info":
+		level = slog.LevelInfo
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+	
+	var handler slog.Handler
+	
+	switch strings.ToLower(logFormat) {
+	case "json":
+		opts := &slog.HandlerOptions{
+			Level:     level,
+			AddSource: false,
+		}
+		handler = slog.NewJSONHandler(os.Stderr, opts)
+	default:
+		// Use sloghandler for colorized text output
+		opts := &sloghandler.HandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				Level:     level,
+				AddSource: false,
+			},
+			Color: true, // Enable colorized output
+		}
+		handler = sloghandler.NewLogHandler(os.Stderr, opts)
+	}
+	
+	slog.SetDefault(slog.New(handler))
 }

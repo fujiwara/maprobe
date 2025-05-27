@@ -2,7 +2,7 @@ package maprobe
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync"
@@ -23,7 +23,7 @@ func newClient(apiKey string, backupStream string) *Client {
 		mackerel: mackerel.NewClient(apiKey),
 	}
 	if backupStream != "" {
-		log.Println("[info] setting backup firehose stream:", backupStream)
+		slog.Info("setting backup firehose stream", "stream", backupStream)
 		sess := session.Must(session.NewSession())
 		c.backupClient = &backupClient{
 			svc:        firehose.New(sess),
@@ -45,7 +45,7 @@ func (client *Client) FindHosts(p *mackerel.FindHostsParam) ([]*mackerel.Host, e
 	hosts, err := client.mackerel.FindHosts(p)
 	if err != nil {
 		if cachedHosts, found := findHostsCache.Load(key); found {
-			log.Println("[warn] probes find host failed, using previous cache:", err)
+			slog.Warn("probes find host failed, using previous cache", "error", err)
 			hosts = cachedHosts.([]*mackerel.Host)
 		} else {
 			return nil, err
@@ -64,7 +64,7 @@ func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.Met
 	if c.backupClient == nil {
 		return err
 	}
-	log.Println("[warn] failed to post metrics to mackerel:", err)
+	slog.Warn("failed to post metrics to mackerel", "error", err)
 	return c.backupClient.PostServiceMetricValues(serviceName, mvs)
 }
 
@@ -76,7 +76,7 @@ func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
 	if c.backupClient == nil {
 		return err
 	}
-	log.Println("[warn] failed to post metrics to mackerel:", err)
+	slog.Warn("failed to post metrics to mackerel", "error", err)
 	return c.backupClient.PostHostMetricValues(mvs)
 }
 
@@ -97,16 +97,20 @@ func (c *Client) fetchLatestMetricValues(hostIDs []string, metricNames []string)
 					<-clientSem
 					wg.Done()
 				}()
-				log.Printf(
-					"[trace] fetching host metric values: %s %s from %s to %s",
-					hostID,
-					metricName,
-					from.Format(time.RFC3339),
-					to.Format(time.RFC3339),
+				slog.Debug("fetching host metric values",
+					"hostID", hostID,
+					"metricName", metricName,
+					"from", from.Format(time.RFC3339),
+					"to", to.Format(time.RFC3339),
 				)
 				mvs, err := c.mackerel.FetchHostMetricValues(hostID, metricName, from.Unix(), to.Unix())
 				if err != nil {
-					log.Printf("[warn] failed to fetch host metric values: %s %s %s from %s to %s", err, hostID, metricName, from, to)
+					slog.Warn("failed to fetch host metric values",
+						"error", err,
+						"hostID", hostID,
+						"metricName", metricName,
+						"from", from,
+						"to", to)
 					return
 				}
 				if len(mvs) == 0 {

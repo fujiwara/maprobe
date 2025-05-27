@@ -3,7 +3,6 @@ package maprobe_test
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -34,7 +33,7 @@ func TestHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println(probe, err)
+	t.Log(probe, err)
 
 	ms, err := probe.Run(context.Background())
 	if err != nil {

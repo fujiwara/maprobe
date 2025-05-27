@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -124,7 +124,7 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		} else {
 			ms = append(ms, newMetric(p, "check.ok", 0))
 		}
-		log.Println("[trace]", ms.String())
+		slog.Debug("http probe completed", "metrics", ms.String())
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
@@ -132,7 +132,7 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 
 	req, err := http.NewRequestWithContext(ctx, p.Method, p.URL, strings.NewReader(p.Body))
 	if err != nil {
-		log.Println("[warn] invalid HTTP request", err)
+		slog.Warn("invalid HTTP request", "error", err)
 		return
 	}
 	for name, value := range p.Headers {
@@ -145,10 +145,10 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 	}
 	client := &http.Client{Transport: tr}
 
-	log.Printf("[debug] http request %s %s", req.Method, req.URL)
+	slog.Debug("http request", "method", req.Method, "url", req.URL)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("[warn] HTTP request failed", err)
+		slog.Warn("HTTP request failed", "error", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -160,7 +160,7 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("[warn] HTTP read body failed", err)
+		slog.Warn("HTTP read body failed", "error", err)
 		return ms, fmt.Errorf("read body failed: %w", err)
 	}
 	ms = append(ms, newMetric(p, "content.length", float64(len(body))))

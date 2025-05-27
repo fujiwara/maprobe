@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"io"
-	"log"
 	"net"
 	"os"
 	"testing"
@@ -26,14 +25,13 @@ func TestMain(m *testing.M) {
 func testTCPServer() net.Addr {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	go func() {
 		defer l.Close()
 		for {
 			conn, err := l.Accept()
 			if err != nil {
-				log.Fatal(err)
 				return
 			}
 			go func(conn net.Conn) {
