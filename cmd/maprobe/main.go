@@ -45,17 +45,7 @@ func main() {
 		args = os.Args[1:]
 	}
 
-	parser, err := kong.New(&cli)
-	if err != nil {
-		log.Println("[error]", err)
-		os.Exit(1)
-	}
-	
-	kongCtx, err := parser.Parse(args)
-	if err != nil {
-		log.Println("[error]", err)
-		os.Exit(1)
-	}
+	kongCtx := kong.Parse(&cli, kong.Args(args...))
 
 	log.Println("[info] maprobe", maprobe.Version)
 
@@ -148,7 +138,7 @@ func main() {
 		wg.Add(1)
 		maprobe.RunFirehoseEndpoint(ctx, &wg, cli.FirehoseEndpoint.Port)
 	default:
-		err = fmt.Errorf("command %s not exist", cmdName)
+		err = fmt.Errorf("command %s does not exist", cmdName)
 	}
 	wg.Wait()
 	log.Println("[info] shutdown")
