@@ -45,7 +45,11 @@ func main() {
 		args = os.Args[1:]
 	}
 
-	kongCtx := kong.Parse(&cli, kong.Args(args...))
+	// Override os.Args for parsing
+	originalArgs := os.Args
+	os.Args = append([]string{os.Args[0]}, args...)
+	kongCtx := kong.Parse(&cli, kong.UsageOnError())
+	os.Args = originalArgs
 
 	log.Println("[info] maprobe", maprobe.Version)
 
@@ -87,6 +91,7 @@ func main() {
 	}()
 
 	var wg sync.WaitGroup
+	var err error
 	switch cmdName {
 	case "version":
 		fmt.Printf("maprobe version %s\n", maprobe.Version)
