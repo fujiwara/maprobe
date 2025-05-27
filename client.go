@@ -1,6 +1,7 @@
 package maprobe
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -8,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
@@ -24,9 +25,14 @@ func newClient(apiKey string, backupStream string) *Client {
 	}
 	if backupStream != "" {
 		slog.Info("setting backup firehose stream", "stream", backupStream)
-		sess := session.Must(session.NewSession())
+		ctx := context.Background()
+		cfg, err := config.LoadDefaultConfig(ctx)
+		if err != nil {
+			slog.Error("failed to load AWS config", "error", err)
+			return c
+		}
 		c.backupClient = &backupClient{
-			svc:        firehose.New(sess),
+			svc:        firehose.NewFromConfig(cfg),
 			streamName: backupStream,
 		}
 	}
