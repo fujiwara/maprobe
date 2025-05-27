@@ -21,7 +21,7 @@ type backupPayload struct {
 	HostMetricValues []*mackerel.HostMetricValue `json:"host_metric_values,omitempty"`
 }
 
-func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.MetricValue) error {
+func (c *backupClient) PostServiceMetricValues(ctx context.Context, service string, mvs []*mackerel.MetricValue) error {
 	slog.Info("post service metrics to backup stream", "count", len(mvs), "stream", c.streamName)
 	data, err := json.Marshal(backupPayload{
 		Service:      service,
@@ -30,14 +30,14 @@ func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.M
 	if err != nil {
 		return err
 	}
-	_, err = c.svc.PutRecord(context.Background(), &firehose.PutRecordInput{
+	_, err = c.svc.PutRecord(ctx, &firehose.PutRecordInput{
 		DeliveryStreamName: &c.streamName,
 		Record:             &types.Record{Data: data},
 	})
 	return err
 }
 
-func (c *backupClient) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
+func (c *backupClient) PostHostMetricValues(ctx context.Context, mvs []*mackerel.HostMetricValue) error {
 	slog.Info("post host metrics to backup stream", "count", len(mvs), "stream", c.streamName)
 	data, err := json.Marshal(backupPayload{
 		HostMetricValues: mvs,
@@ -45,7 +45,7 @@ func (c *backupClient) PostHostMetricValues(mvs []*mackerel.HostMetricValue) err
 	if err != nil {
 		return err
 	}
-	_, err = c.svc.PutRecord(context.Background(), &firehose.PutRecordInput{
+	_, err = c.svc.PutRecord(ctx, &firehose.PutRecordInput{
 		DeliveryStreamName: &c.streamName,
 		Record:             &types.Record{Data: data},
 	})

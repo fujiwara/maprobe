@@ -62,7 +62,7 @@ func (client *Client) FindHosts(p *mackerel.FindHostsParam) ([]*mackerel.Host, e
 	return hosts, nil
 }
 
-func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.MetricValue) error {
+func (c *Client) PostServiceMetricValues(ctx context.Context, serviceName string, mvs []*mackerel.MetricValue) error {
 	err := c.mackerel.PostServiceMetricValues(serviceName, mvs)
 	if err == nil {
 		return nil
@@ -71,10 +71,10 @@ func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.Met
 		return err
 	}
 	slog.Warn("failed to post metrics to mackerel", "error", err)
-	return c.backupClient.PostServiceMetricValues(serviceName, mvs)
+	return c.backupClient.PostServiceMetricValues(ctx, serviceName, mvs)
 }
 
-func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
+func (c *Client) PostHostMetricValues(ctx context.Context, mvs []*mackerel.HostMetricValue) error {
 	err := c.mackerel.PostHostMetricValues(mvs)
 	if err == nil {
 		return nil
@@ -83,7 +83,7 @@ func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
 		return err
 	}
 	slog.Warn("failed to post metrics to mackerel", "error", err)
-	return c.backupClient.PostHostMetricValues(mvs)
+	return c.backupClient.PostHostMetricValues(ctx, mvs)
 }
 
 func (c *Client) fetchLatestMetricValues(hostIDs []string, metricNames []string) (mackerel.LatestMetricValues, error) {

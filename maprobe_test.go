@@ -15,7 +15,7 @@ func TestDoRetry(t *testing.T) {
 	start := time.Now()
 	err := maprobe.DoRetry(context.Background(), func() error {
 		tries++
-		return client.PostHostMetricValues(nil)
+		return client.PostHostMetricValues(context.Background(), nil)
 	})
 	elapsed := time.Since(start)
 	if err == nil {

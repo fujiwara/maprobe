@@ -129,9 +129,9 @@ func (p *CommandProbe) TempDir() string {
 	return dir
 }
 
-func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
-	// Run() should not be canceled by parent context.
-	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+func (p *CommandProbe) Run(ctx context.Context) (ms Metrics, err error) {
+	// Create timeout context from parent context to allow cancellation
+	timeoutCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -139,9 +139,9 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	case 0:
 		return nil, fmt.Errorf("no command")
 	case 1:
-		cmd = exec.CommandContext(ctx, p.Command[0])
+		cmd = exec.CommandContext(timeoutCtx, p.Command[0])
 	default:
-		cmd = exec.CommandContext(ctx, p.Command[0], p.Command[1:]...)
+		cmd = exec.CommandContext(timeoutCtx, p.Command[0], p.Command[1:]...)
 	}
 	cmd.Env = append(cmd.Env, os.Environ()...)
 	cmd.Env = append(cmd.Env, p.env...)

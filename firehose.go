@@ -107,14 +107,14 @@ func handleFirehoseRequest(w http.ResponseWriter, r *http.Request) {
 		}
 		if service := payload.Service; service != "" {
 			slog.Info("[FirehoseEndpoint] post service metrics", "count", len(payload.MetricValues), "service", service)
-			if err := client.PostServiceMetricValues(service, payload.MetricValues); err != nil {
+			if err := client.PostServiceMetricValues(r.Context(), service, payload.MetricValues); err != nil {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				respBody.ErrorMessage = err.Error()
 				return
 			}
 		} else {
 			slog.Info("[FirehoseEndpoint] post host metrics", "count", len(payload.HostMetricValues))
-			if err := client.PostHostMetricValues(payload.HostMetricValues); err != nil {
+			if err := client.PostHostMetricValues(r.Context(), payload.HostMetricValues); err != nil {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				respBody.ErrorMessage = err.Error()
 				return
