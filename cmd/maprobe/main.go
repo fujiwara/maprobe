@@ -138,7 +138,7 @@ func main() {
 		wg.Add(1)
 		maprobe.RunFirehoseEndpoint(ctx, &wg, cli.FirehoseEndpoint.Port)
 	default:
-		err = fmt.Errorf("command %s not exist", cmdName)
+		err = fmt.Errorf("command %s does not exist", cmdName)
 	}
 	wg.Wait()
 	log.Println("[info] shutdown")
