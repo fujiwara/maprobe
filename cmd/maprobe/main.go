@@ -14,6 +14,7 @@ import (
 	"github.com/alecthomas/kong"
 	golambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/fujiwara/maprobe"
+	"github.com/fujiwara/sloghandler"
 	gops "github.com/google/gops/agent"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
@@ -205,16 +206,24 @@ func setupSlog(logLevel, logFormat string) {
 	}
 	
 	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: level,
-		AddSource: true,
-	}
 	
 	switch strings.ToLower(logFormat) {
 	case "json":
+		opts := &slog.HandlerOptions{
+			Level:     level,
+			AddSource: false,
+		}
 		handler = slog.NewJSONHandler(os.Stderr, opts)
 	default:
-		handler = slog.NewTextHandler(os.Stderr, opts)
+		// Use sloghandler for colorized text output
+		opts := &sloghandler.HandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				Level:     level,
+				AddSource: false,
+			},
+			Color: true, // Enable colorized output
+		}
+		handler = sloghandler.NewLogHandler(os.Stderr, opts)
 	}
 	
 	slog.SetDefault(slog.New(handler))
