@@ -44,22 +44,27 @@ type CLI struct {
 	FirehoseEndpoint FirehoseEndpointCmd `cmd:"" help:"Run Firehose HTTP endpoint"`
 }
 
+// VersionCmd represents the version command
 type VersionCmd struct{}
 
+// AgentCmd represents the agent command that runs continuously
 type AgentCmd struct {
 	Config               string `short:"c" help:"configuration file path or URL(http|s3)" env:"CONFIG"`
 	WithFirehoseEndpoint bool   `help:"run with firehose HTTP endpoint server"`
 	Port                 int    `help:"firehose HTTP endpoint listen port" default:"8080"`
 }
 
+// OnceCmd represents the once command that runs probes once and exits
 type OnceCmd struct {
 	Config string `short:"c" help:"configuration file path or URL(http|s3)" env:"CONFIG"`
 }
 
+// LambdaCmd represents the lambda command that runs on AWS Lambda
 type LambdaCmd struct {
 	Config string `short:"c" help:"configuration file path or URL(http|s3)" env:"CONFIG"`
 }
 
+// PingCmd represents the ping command for standalone ping probe
 type PingCmd struct {
 	Address string        `arg:"" help:"Hostname or IP address" required:""`
 	Count   int           `short:"c" help:"Iteration count"`
@@ -67,6 +72,7 @@ type PingCmd struct {
 	HostID  string        `short:"i" help:"Mackerel host ID"`
 }
 
+// TCPCmd represents the TCP command for standalone TCP probe
 type TCPCmd struct {
 	Host               string        `arg:"" help:"Hostname or IP address" required:""`
 	Port               string        `arg:"" help:"Port number" required:""`
@@ -79,6 +85,7 @@ type TCPCmd struct {
 	TLS                bool          `help:"Use TLS"`
 }
 
+// HTTPCmd represents the HTTP command for standalone HTTP probe
 type HTTPCmd struct {
 	URL                string            `arg:"" help:"URL" required:""`
 	Method             string            `short:"m" help:"Request method" default:"GET"`
@@ -90,6 +97,7 @@ type HTTPCmd struct {
 	HostID             string            `short:"i" help:"Mackerel host ID"`
 }
 
+// FirehoseEndpointCmd represents the firehose endpoint command for HTTP server
 type FirehoseEndpointCmd struct {
 	Port int `short:"p" help:"Listen port" default:"8080"`
 }
