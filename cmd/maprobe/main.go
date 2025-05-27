@@ -35,21 +35,18 @@ var (
 func main() {
 	var cli maprobe.CLI
 
-	// Parse command line arguments
-	var args []string
+	var kongCtx *kong.Context
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// detect running on AWS Lambda
 		log.Println("[info] running on AWS Lambda")
-		args = []string{"lambda"}
+		// Override os.Args for Lambda
+		originalArgs := os.Args
+		os.Args = []string{os.Args[0], "lambda"}
+		kongCtx = kong.Parse(&cli)
+		os.Args = originalArgs
 	} else {
-		args = os.Args[1:]
+		kongCtx = kong.Parse(&cli)
 	}
-
-	// Override os.Args for parsing
-	originalArgs := os.Args
-	os.Args = append([]string{os.Args[0]}, args...)
-	kongCtx := kong.Parse(&cli, kong.UsageOnError())
-	os.Args = originalArgs
 
 	log.Println("[info] maprobe", maprobe.Version)
 
@@ -72,7 +69,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cmdName := kongCtx.Command()
+	fullCommandName := kongCtx.Command()
+	// Extract the base command name (Kong may return "command <arg>" format)
+	cmdName, _, _ := strings.Cut(fullCommandName, " ")
 	sigCount := 0
 	go func() {
 		for sig := range sigCh {
