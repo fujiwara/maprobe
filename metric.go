@@ -2,7 +2,7 @@ package maprobe
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -143,7 +143,7 @@ func (a *Attribute) SetExtra(ex map[string]string, host *mackerel.Host) {
 	for k, v := range ex {
 		vv, err := expandPlaceHolder(v, host, nil)
 		if err != nil {
-			log.Printf("[error] cannot expand placeholder %s: %s", v, err)
+			slog.Error("cannot expand placeholder", "placeholder", v, "error", err)
 			continue
 		}
 		a.Extra[k] = vv

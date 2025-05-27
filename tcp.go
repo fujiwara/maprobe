@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"regexp"
 	"time"
@@ -111,7 +111,7 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {
-		log.Println("[debug] defer", ok)
+		slog.Debug("tcp probe defer", "ok", ok)
 		elapsed := time.Since(start)
 		ms = append(ms, newMetric(p, "elapsed.seconds", elapsed.Seconds()))
 		if ok {
@@ -119,7 +119,7 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		} else {
 			ms = append(ms, newMetric(p, "check.ok", 0))
 		}
-		log.Println("[debug]", ms.String())
+		slog.Debug("tcp probe completed", "metrics", ms.String())
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
@@ -127,7 +127,7 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 
 	addr := net.JoinHostPort(p.Host, p.Port)
 
-	log.Println("[debug] dialing", addr)
+	slog.Debug("dialing", "addr", addr)
 	conn, err := dialTCP(ctx, addr, p.TLS, p.NoCheckCertificate, p.Timeout)
 	if err != nil {
 		return ms, fmt.Errorf("connect failed: %w", err)
@@ -135,9 +135,9 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(p.Timeout))
 
-	log.Println("[debug] connected", addr)
+	slog.Debug("connected", "addr", addr)
 	if p.Send != "" {
-		log.Println("[debug] send", p.Send)
+		slog.Debug("send", "data", p.Send)
 		_, err := io.WriteString(conn, p.Send)
 		if err != nil {
 			return ms, fmt.Errorf("send failed: %w", err)
@@ -150,14 +150,14 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		if err != nil {
 			return ms, fmt.Errorf("read failed: %w", err)
 		}
-		log.Println("[debug] read", string(buf[:n]))
+		slog.Debug("read", "data", string(buf[:n]))
 
 		if !p.ExpectPattern.Match(buf[:n]) {
 			return ms, fmt.Errorf("unexpected response")
 		}
 	}
 	if p.Quit != "" {
-		log.Println("[debug]", p.Quit)
+		slog.Debug("quit", "data", p.Quit)
 		io.WriteString(conn, p.Quit)
 	}
 

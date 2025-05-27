@@ -7,7 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -86,7 +86,7 @@ func (pc *CommandProbeConfig) GenerateProbe(host *mackerel.Host, client *mackere
 
 	if p.GraphDefs && client != nil {
 		if err := p.PostGraphDefs(client, pc); err != nil {
-			log.Printf("[warn] failed to post graph defs for %#v: %s", p, err)
+			slog.Warn("failed to post graph defs", "probe", p, "error", err)
 		}
 	}
 	for name, value := range pc.Env {
@@ -122,10 +122,10 @@ func (p *CommandProbe) TempDir() string {
 			// ok
 			return dir
 		}
-		log.Printf("[warn] failed to create a new TempDir %s: %s using %s", dir, err, os.TempDir())
+		slog.Warn("failed to create TempDir", "dir", dir, "error", err, "fallback", os.TempDir())
 		return os.TempDir()
 	}
-	log.Printf("[debug] TempDir %s created for %s", dir, strings.Join(p.Command, " "))
+	slog.Debug("TempDir created", "dir", dir, "command", strings.Join(p.Command, " "))
 	return dir
 }
 
@@ -162,10 +162,10 @@ func (p *CommandProbe) Run(_ context.Context) (ms Metrics, err error) {
 	}
 
 	for scanner.Scan() {
-		log.Println("[trace]", scanner.Text())
+		slog.Debug("command output", "output", scanner.Text())
 		m, err := parseMetricLine(scanner.Text())
 		if err != nil {
-			log.Printf("[warn] %s failed to parse metric line. %s", strings.Join(p.Command, " "), err)
+			slog.Warn("failed to parse metric line", "command", strings.Join(p.Command, " "), "error", err)
 			continue
 		}
 		if p.GraphDefs {
@@ -202,7 +202,7 @@ var pluginMetaHeaderLine = []byte("# mackerel-agent-plugin\n")
 
 func (p *CommandProbe) PostGraphDefs(client *mackerel.Client, pc *CommandProbeConfig) error {
 	if _, found := graphDefsPosted.Load(pc); found {
-		log.Printf("[trace] graphDefsPosted %v", pc)
+		slog.Debug("graph defs already posted", "config", pc)
 		return nil
 	}
 
@@ -211,7 +211,7 @@ func (p *CommandProbe) PostGraphDefs(client *mackerel.Client, pc *CommandProbeCo
 		graphDefsPosted.Store(pc, struct{}{})
 		return err
 	}
-	log.Printf("[trace] Got graph defs %#v", out)
+	slog.Debug("got graph defs", "defs", out)
 
 	payloads := make([]*mackerel.GraphDefsParam, 0, len(out.Graphs))
 	for _name, g := range out.Graphs {
@@ -232,19 +232,19 @@ func (p *CommandProbe) PostGraphDefs(client *mackerel.Client, pc *CommandProbeCo
 		})
 	}
 	b, _ := json.Marshal(payloads)
-	log.Println("[trace] create to graph defs", string(b))
+	slog.Debug("creating graph defs", "payload", string(b))
 	if err := client.CreateGraphDefs(payloads); err != nil {
 		// When failed to post to Mackerel, graphDefsPosted shouldnot be stored.
 		return fmt.Errorf("could not create graph defs: %w", err)
 	}
-	log.Printf("[info] success to create graph defs for %v", p.Command)
+	slog.Info("created graph defs", "command", p.Command)
 
 	graphDefsPosted.Store(pc, struct{}{})
 	return nil
 }
 
 func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
-	log.Printf("[trace] Get graph defs for %v", p.Command)
+	slog.Debug("getting graph defs", "command", p.Command)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

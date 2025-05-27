@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -106,7 +106,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if pingConfig := pd.Ping; pingConfig != nil {
 		p, err := pingConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate ping probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate ping probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -115,7 +115,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if tcpConfig := pd.TCP; tcpConfig != nil {
 		p, err := tcpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate tcp probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate tcp probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -124,7 +124,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if httpConfig := pd.HTTP; httpConfig != nil {
 		p, err := httpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate http probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate http probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -133,7 +133,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if commandConfig := pd.Command; commandConfig != nil {
 		p, err := commandConfig.GenerateProbe(host, client)
 		if err != nil {
-			log.Printf("[error] cannot generate command probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate command probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -195,7 +195,7 @@ func (c *Config) initialize() error {
 
 func (c *Config) validate() error {
 	if o := c.ProbeOnly; o != nil {
-		log.Println("[warn] configuration probe_only is not deprecated. use post_probed_metrics")
+		slog.Warn("configuration probe_only is not deprecated. use post_probed_metrics")
 		c.PostProbedMetrics = !*o
 	}
 
@@ -216,10 +216,7 @@ func (c *Config) validate() error {
 				case "count":
 					oc.calc = count
 				default:
-					log.Printf(
-						"[warn] func %s is not available for outputs %s",
-						oc.Func, mc.Name,
-					)
+					slog.Warn("func is not available for outputs", "func", oc.Func, "output", mc.Name)
 				}
 			}
 		}
@@ -251,7 +248,7 @@ func (c *Config) String() string {
 }
 
 func fetchHTTP(u *url.URL) ([]byte, error) {
-	log.Println("[debug] fetching HTTP", u)
+	slog.Debug("fetching HTTP", "url", u)
 	resp, err := http.Get(u.String())
 	if err != nil {
 		return nil, err
@@ -261,7 +258,7 @@ func fetchHTTP(u *url.URL) ([]byte, error) {
 }
 
 func fetchS3(u *url.URL) ([]byte, error) {
-	log.Println("[debug] fetching S3", u)
+	slog.Debug("fetching S3", "url", u)
 	sess := session.Must(session.NewSession())
 	downloader := s3manager.NewDownloader(sess)
 
