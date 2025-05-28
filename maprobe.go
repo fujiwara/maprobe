@@ -14,11 +14,17 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/fujiwara/sloghandler"
+	"github.com/fujiwara/sloghandler/otelmetrics"
 	mackerel "github.com/mackerelio/mackerel-client-go"
+	"github.com/mattn/go-isatty"
 	"github.com/shogo82148/go-retry"
+	"go.opentelemetry.io/otel"
+	otelattribute "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	otelmetricdata "go.opentelemetry.io/otel/sdk/metric/metricdata"
-	otelresource "go.opentelemetry.io/otel/sdk/resource"
+	otelmetric "go.opentelemetry.io/otel/metric"
+	otelsdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	otelsdkmetricdata "go.opentelemetry.io/otel/sdk/metric/metricdata"
+	otelsdkresource "go.opentelemetry.io/otel/sdk/resource"
 )
 
 var (
@@ -26,11 +32,13 @@ var (
 	MaxConcurrency         = 100
 	MaxClientConcurrency   = 5
 	PostMetricBufferLength = 100
-	sem                    = make(chan struct{}, MaxConcurrency)
-	clientSem              = make(chan struct{}, MaxClientConcurrency)
 	ProbeInterval          = 60 * time.Second
-	metricTimeMargin       = -3 * time.Minute
 	MackerelAPIKey         string
+	MackerelOtelEndpoint   = "otlp.mackerelio.com:4317"
+
+	sem              = make(chan struct{}, MaxConcurrency)
+	clientSem        = make(chan struct{}, MaxClientConcurrency)
+	metricTimeMargin = -3 * time.Minute
 )
 
 var retryPolicy = retry.Policy{
@@ -64,6 +72,17 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	chs := NewChannels(conf.Destination)
 	defer chs.Close()
 
+	var exporter otelsdkmetric.Exporter
+	if conf.Destination.Otel.Enabled {
+		var err error
+		exporter, err = newOtelExporter(ctx, conf.Destination.Otel)
+		if err != nil {
+			return fmt.Errorf("failed to create OpenTelemetry meter exporter: %w", err)
+		}
+		defer exporter.Shutdown(ctx)
+		modifyLoggerWithMetricExporter(exporter)
+	}
+
 	if len(conf.Probes) > 0 {
 		if conf.PostProbedMetrics {
 			if conf.Destination.Mackerel.Enabled {
@@ -73,7 +92,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			}
 			if conf.Destination.Otel.Enabled {
 				wg.Add(1)
-				go postOtelMetricWorker(ctx, wg, chs, conf.Destination.Otel)
+				go postOtelMetricWorker(ctx, wg, exporter, chs)
 			}
 		} else {
 			if conf.Destination.Mackerel.Enabled {
@@ -315,19 +334,13 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 	}
 }
 
-func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels, oc *OtelConfig) {
+func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, exporter otelsdkmetric.Exporter, chs *Channels) {
 	defer wg.Done()
-	exporter, endpointURL, err := newOtelExporter(ctx, oc)
-	if err != nil {
-		slog.Error("failed to create OpenTelemetry meter exporter", "error", err)
-		return
-	}
-	defer exporter.Shutdown(ctx)
-	slog.Info("starting postOtelMetricWorker", "endpoint", endpointURL)
-	attrs := otelresource.NewSchemaless()
+	slog.Info("starting postOtelMetricWorker")
+	attrs := otelsdkresource.NewSchemaless()
 
 	ticker := time.NewTicker(10 * time.Second)
-	mvs := make([]otelmetricdata.Metrics, 0, PostMetricBufferLength)
+	mvs := make([]otelsdkmetricdata.Metrics, 0, PostMetricBufferLength)
 	run := true
 	for run {
 		select {
@@ -347,10 +360,10 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels
 		if len(mvs) == 0 {
 			continue
 		}
-		slog.Debug("posting otel metrics", "count", len(mvs), "endpoint", endpointURL)
-		rms := &otelmetricdata.ResourceMetrics{
+		slog.Debug("posting otel metrics", "count", len(mvs))
+		rms := &otelsdkmetricdata.ResourceMetrics{
 			Resource: attrs,
-			ScopeMetrics: []otelmetricdata.ScopeMetrics{
+			ScopeMetrics: []otelsdkmetricdata.ScopeMetrics{
 				{Metrics: mvs},
 			},
 		}
@@ -366,31 +379,31 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, chs *Channels
 	}
 }
 
-func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Exporter, string, error) {
+func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Exporter, error) {
 	opts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithHeaders(map[string]string{"Mackerel-Api-Key": MackerelAPIKey}),
 		otlpmetricgrpc.WithCompressor("gzip"),
 	}
+
 	var endpointURL = url.URL{
 		Scheme: "https",
 		Host:   oc.Endpoint,
 	}
-	if oc.Endpoint != "" {
-		opts = append(opts, otlpmetricgrpc.WithEndpoint(oc.Endpoint))
-	} else {
-		// TODO fix to use Mackrel when it is GA
-		opts = append(opts, otlpmetricgrpc.WithEndpoint("localhost:4317"))
-		endpointURL.Host = "localhost:4317"
+	if endpointURL.Host == "" {
+		endpointURL.Host = MackerelOtelEndpoint
 	}
+	opts = append(opts, otlpmetricgrpc.WithEndpoint(endpointURL.Host))
 	if oc.Insecure {
 		opts = append(opts, otlpmetricgrpc.WithInsecure())
 		endpointURL.Scheme = "http"
 	}
+	slog.Info("creating otel exporter", "endpoint", endpointURL.String())
+
 	exporter, err := otlpmetricgrpc.New(ctx, opts...)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
-	return exporter, endpointURL.String(), nil
+	return exporter, nil
 }
 
 func dumpHostMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
@@ -552,8 +565,10 @@ func marshalJSON(i interface{}) string {
 	return string(b)
 }
 
-// SetupSlog configures structured logging
-func SetupSlog(logLevel, logFormat string) {
+// SetupLogger configures structured logging
+func SetupLogger(logLevel, logFormat string) {
+	var w = os.Stderr
+
 	var level slog.Level
 	switch strings.ToLower(logLevel) {
 	case "trace", "debug":
@@ -576,7 +591,7 @@ func SetupSlog(logLevel, logFormat string) {
 			Level:     level,
 			AddSource: false,
 		}
-		handler = slog.NewJSONHandler(os.Stderr, opts)
+		handler = slog.NewJSONHandler(w, opts)
 	default:
 		// Use sloghandler for colorized text output
 		opts := &sloghandler.HandlerOptions{
@@ -584,10 +599,29 @@ func SetupSlog(logLevel, logFormat string) {
 				Level:     level,
 				AddSource: false,
 			},
-			Color: true, // Enable colorized output
+			Color: isatty.IsTerminal(w.Fd()), // Enable color output if the output is a terminal
 		}
-		handler = sloghandler.NewLogHandler(os.Stderr, opts)
+		handler = sloghandler.NewLogHandler(w, opts)
 	}
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+}
 
+func modifyLoggerWithMetricExporter(exporter otelsdkmetric.Exporter) {
+	slog.Info("modifying logger with metric exporter", "exporter", fmt.Sprintf("%T", exporter))
+	reader := otelsdkmetric.NewPeriodicReader(exporter)
+	provider := otelsdkmetric.NewMeterProvider(otelsdkmetric.WithReader(reader))
+	meter := provider.Meter(
+		"maprobe/logs",
+		// TODO optional attributes
+		otelmetric.WithInstrumentationAttributes(otelattribute.String("service.name", "maprobe")),
+	)
+	counter, _ := meter.Int64Counter(
+		"messages",
+		otelmetric.WithDescription("Number of log messages by level"),
+	)
+	otel.SetMeterProvider(provider)
+
+	handler := otelmetrics.NewHandler(slog.Default().Handler(), counter)
 	slog.SetDefault(slog.New(handler))
 }

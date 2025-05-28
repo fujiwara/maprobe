@@ -43,7 +43,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to create parser: %v\n", err)
 		os.Exit(1)
 	}
-	
+
 	kongCtx, err := parser.Parse(args[1:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to parse arguments: %v\n", err)
@@ -51,8 +51,8 @@ func main() {
 	}
 
 	// Setup structured logging
-	maprobe.SetupSlog(cli.LogLevel, cli.LogFormat)
-	
+	maprobe.SetupLogger(cli.LogLevel, cli.LogFormat)
+
 	slog.Info("maprobe", "version", maprobe.Version)
 
 	if cli.GopsEnabled {
@@ -99,7 +99,7 @@ func main() {
 
 	// Execute command
 	err = maprobe.Main(ctx, args)
-	
+
 	slog.Info("shutdown")
 	select {
 	case <-ctx.Done():
