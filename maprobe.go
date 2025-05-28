@@ -124,7 +124,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer slog.Info("stopping maprobe")
 
 	slog.Info("starting maprobe")
-	conf, confDigest, err := LoadConfig(configPath)
+	conf, confDigest, err := LoadConfig(ctx, configPath)
 	if err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		}
 
 		slog.Debug("checking a new config")
-		newConf, digest, err := LoadConfig(configPath)
+		newConf, digest, err := LoadConfig(ctx, configPath)
 		if err != nil {
 			slog.Warn("config load failed", "error", err)
 			slog.Warn("still using current config")

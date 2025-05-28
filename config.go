@@ -142,7 +142,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	return probes
 }
 
-func LoadConfig(location string) (*Config, string, error) {
+func LoadConfig(ctx context.Context, location string) (*Config, string, error) {
 	c := &Config{
 		location:              location,
 		PostProbedMetrics:     true,
@@ -157,7 +157,7 @@ func LoadConfig(location string) (*Config, string, error) {
 			},
 		},
 	}
-	b, err := c.fetch()
+	b, err := c.fetch(ctx)
 	if err != nil {
 		return nil, "", fmt.Errorf("load config failed: %w", err)
 	}
@@ -225,7 +225,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-func (c *Config) fetch() ([]byte, error) {
+func (c *Config) fetch(ctx context.Context) ([]byte, error) {
 	u, err := url.Parse(c.location)
 	if err != nil {
 		// file path
@@ -233,9 +233,9 @@ func (c *Config) fetch() ([]byte, error) {
 	}
 	switch u.Scheme {
 	case "http", "https":
-		return fetchHTTP(u)
+		return fetchHTTP(ctx, u)
 	case "s3":
-		return fetchS3(u)
+		return fetchS3(ctx, u)
 	default:
 		// file
 		return os.ReadFile(u.Path)
@@ -247,9 +247,13 @@ func (c *Config) String() string {
 	return string(b)
 }
 
-func fetchHTTP(u *url.URL) ([]byte, error) {
+func fetchHTTP(ctx context.Context, u *url.URL) ([]byte, error) {
 	slog.Debug("fetching HTTP", "url", u)
-	resp, err := http.Get(u.String())
+	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -257,9 +261,8 @@ func fetchHTTP(u *url.URL) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func fetchS3(u *url.URL) ([]byte, error) {
+func fetchS3(ctx context.Context, u *url.URL) ([]byte, error) {
 	slog.Debug("fetching S3", "url", u)
-	ctx := context.Background()
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config, %s", err)
