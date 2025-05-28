@@ -129,7 +129,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		return err
 	}
 	slog.Debug("config", "config", conf.String())
-	client := newClient(MackerelAPIKey, conf.Backup.FirehoseStreamName)
+	client := newClient(ctx, MackerelAPIKey, conf.Backup.FirehoseStreamName)
 
 	chs := NewChannels(conf.Destination)
 	defer chs.Close()

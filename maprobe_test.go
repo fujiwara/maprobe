@@ -10,7 +10,7 @@ import (
 
 func TestDoRetry(t *testing.T) {
 	t.Setenv("EMULATE_FAILURE", "true")
-	client := maprobe.NewClient("dummy", "")
+	client := maprobe.NewClient(context.Background(), "dummy", "")
 	tries := 0
 	start := time.Now()
 	err := maprobe.DoRetry(context.Background(), func() error {

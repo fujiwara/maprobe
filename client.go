@@ -19,13 +19,12 @@ type Client struct {
 	backupClient *backupClient
 }
 
-func newClient(apiKey string, backupStream string) *Client {
+func newClient(ctx context.Context, apiKey string, backupStream string) *Client {
 	c := &Client{
 		mackerel: mackerel.NewClient(apiKey),
 	}
 	if backupStream != "" {
 		slog.Info("setting backup firehose stream", "stream", backupStream)
-		ctx := context.Background()
 		cfg, err := config.LoadDefaultConfig(ctx)
 		if err != nil {
 			slog.Error("failed to load AWS config", "error", err)

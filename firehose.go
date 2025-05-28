@@ -97,7 +97,7 @@ func handleFirehoseRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := newClient(MackerelAPIKey, "") // with no backup
+	client := newClient(r.Context(), MackerelAPIKey, "") // with no backup
 	for _, record := range reqBody.Records {
 		var payload backupPayload
 		slog.Debug("[FirehoseEndpoint] record", "data", string(record.Data))
