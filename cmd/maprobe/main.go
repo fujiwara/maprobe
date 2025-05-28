@@ -2,21 +2,17 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/alecthomas/kong"
 	golambda "github.com/aws/aws-lambda-go/lambda"
 	"github.com/fujiwara/maprobe"
-	"github.com/fujiwara/sloghandler"
 	gops "github.com/google/gops/agent"
-	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
 func init() {
@@ -33,23 +29,29 @@ var (
 )
 
 func main() {
-	var cli maprobe.CLI
-
-	var kongCtx *kong.Context
+	// Detect AWS Lambda environment and modify args accordingly
+	args := os.Args
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
-		// detect running on AWS Lambda
 		slog.Info("running on AWS Lambda")
-		// Override os.Args for Lambda
-		originalArgs := os.Args
-		os.Args = []string{os.Args[0], "lambda"}
-		kongCtx = kong.Parse(&cli)
-		os.Args = originalArgs
-	} else {
-		kongCtx = kong.Parse(&cli)
+		args = []string{args[0], "lambda"}
+	}
+
+	// Parse CLI to get log settings
+	var cli maprobe.CLI
+	parser, err := kong.New(&cli)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create parser: %v\n", err)
+		os.Exit(1)
+	}
+	
+	kongCtx, err := parser.Parse(args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to parse arguments: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Setup structured logging
-	setupSlog(cli.LogLevel, cli.LogFormat)
+	maprobe.SetupSlog(cli.LogLevel, cli.LogFormat)
 	
 	slog.Info("maprobe", "version", maprobe.Version)
 
@@ -60,13 +62,14 @@ func main() {
 		}
 	}
 
-	sigCh := make(chan os.Signal, 2)
-	signal.Notify(sigCh, trapSignals...)
+	// Setup context and signal handling
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	sigCh := make(chan os.Signal, 2)
+	signal.Notify(sigCh, trapSignals...)
+
 	fullCommandName := kongCtx.Command()
-	// Extract the base command name (Kong may return "command <arg>" format)
 	cmdName, _, _ := strings.Cut(fullCommandName, " ")
 	sigCount := 0
 	go func() {
@@ -85,62 +88,18 @@ func main() {
 		}
 	}()
 
-	var wg sync.WaitGroup
-	var err error
-	switch cmdName {
-	case "version":
-		fmt.Printf("maprobe version %s\n", maprobe.Version)
-		return
-	case "agent":
-		if cli.Agent.WithFirehoseEndpoint {
-			wg.Add(1)
-			go maprobe.RunFirehoseEndpoint(ctx, &wg, cli.Agent.Port)
-		}
-		wg.Add(1)
-		err = maprobe.Run(ctx, &wg, cli.Agent.Config, false)
-	case "once":
-		wg.Add(1)
-		err = maprobe.Run(ctx, &wg, cli.Once.Config, true)
-	case "lambda":
+	// Handle Lambda execution differently
+	if cmdName == "lambda" {
 		slog.Info("running on AWS Lambda", "config", cli.Lambda.Config)
 		golambda.StartWithOptions(func(lambdaCtx context.Context) error {
-			wg.Add(1)
-			return maprobe.Run(lambdaCtx, &wg, cli.Lambda.Config, true)
+			return maprobe.Main(lambdaCtx, []string{"maprobe", "lambda", "--config", cli.Lambda.Config})
 		}, golambda.WithContext(ctx))
-	case "ping":
-		err = runProbe(ctx, cli.Ping.HostID, &maprobe.PingProbeConfig{
-			Address: cli.Ping.Address,
-			Count:   cli.Ping.Count,
-			Timeout: cli.Ping.Timeout,
-		})
-	case "tcp":
-		err = runProbe(ctx, cli.TCP.HostID, &maprobe.TCPProbeConfig{
-			Host:               cli.TCP.Host,
-			Port:               cli.TCP.Port,
-			Timeout:            cli.TCP.Timeout,
-			Send:               cli.TCP.Send,
-			Quit:               cli.TCP.Quit,
-			ExpectPattern:      cli.TCP.ExpectPattern,
-			NoCheckCertificate: cli.TCP.NoCheckCertificate,
-			TLS:                cli.TCP.TLS,
-		})
-	case "http":
-		err = runProbe(ctx, cli.HTTP.HostID, &maprobe.HTTPProbeConfig{
-			URL:                cli.HTTP.URL,
-			Method:             cli.HTTP.Method,
-			Body:               cli.HTTP.Body,
-			Headers:            cli.HTTP.Headers,
-			Timeout:            cli.HTTP.Timeout,
-			ExpectPattern:      cli.HTTP.ExpectPattern,
-			NoCheckCertificate: cli.HTTP.NoCheckCertificate,
-		})
-	case "firehose-endpoint":
-		wg.Add(1)
-		maprobe.RunFirehoseEndpoint(ctx, &wg, cli.FirehoseEndpoint.Port)
-	default:
-		err = fmt.Errorf("command %s does not exist", cmdName)
+		return
 	}
-	wg.Wait()
+
+	// Execute command
+	err = maprobe.Main(ctx, args)
+	
 	slog.Info("shutdown")
 	select {
 	case <-ctx.Done():
@@ -151,80 +110,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func mackerelHost(id string) (*mackerel.Host, error) {
-	if apikey := os.Getenv("MACKEREL_APIKEY"); id != "" && apikey != "" {
-		slog.Debug("finding host", "id", id)
-		client := mackerel.NewClient(apikey)
-		return client.FindHost(id)
-	}
-	slog.Debug("using dummy host")
-	return &mackerel.Host{ID: "dummy"}, nil
-}
-
-func runProbe(ctx context.Context, id string, pc maprobe.ProbeConfig) error {
-	slog.Debug("probe config", "config", fmt.Sprintf("%#v", pc))
-	host, err := mackerelHost(id)
-	if err != nil {
-		return err
-	}
-	slog.Debug("host", "host", marshalJSON(host))
-	p, err := pc.GenerateProbe(host)
-	if err != nil {
-		return err
-	}
-	ms, err := p.Run(ctx)
-	if len(ms) > 0 {
-		fmt.Print(ms.String())
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-
-func marshalJSON(i interface{}) string {
-	b, _ := json.Marshal(i)
-	return string(b)
-}
-
-func setupSlog(logLevel, logFormat string) {
-	var level slog.Level
-	switch strings.ToLower(logLevel) {
-	case "trace", "debug":
-		level = slog.LevelDebug
-	case "info":
-		level = slog.LevelInfo
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
-	}
-	
-	var handler slog.Handler
-	
-	switch strings.ToLower(logFormat) {
-	case "json":
-		opts := &slog.HandlerOptions{
-			Level:     level,
-			AddSource: false,
-		}
-		handler = slog.NewJSONHandler(os.Stderr, opts)
-	default:
-		// Use sloghandler for colorized text output
-		opts := &sloghandler.HandlerOptions{
-			HandlerOptions: slog.HandlerOptions{
-				Level:     level,
-				AddSource: false,
-			},
-			Color: true, // Enable colorized output
-		}
-		handler = sloghandler.NewLogHandler(os.Stderr, opts)
-	}
-	
-	slog.SetDefault(slog.New(handler))
 }

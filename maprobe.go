@@ -7,9 +7,13 @@ import (
 	"log/slog"
 	"math"
 	"net/url"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/alecthomas/kong"
+	"github.com/fujiwara/sloghandler"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 	"github.com/shogo82148/go-retry"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
@@ -28,80 +32,6 @@ var (
 	metricTimeMargin       = -3 * time.Minute
 	MackerelAPIKey         string
 )
-
-// CLI defines the command line interface structure for Kong
-type CLI struct {
-	LogLevel    string `name:"log-level" help:"log level" default:"info" env:"LOG_LEVEL"`
-	LogFormat   string `name:"log-format" help:"log format (text|json)" default:"text" enum:"text,json" env:"LOG_FORMAT"`
-	GopsEnabled bool   `name:"gops" help:"enable gops agent" default:"false" env:"GOPS"`
-
-	Version          VersionCmd          `cmd:"" help:"Show version"`
-	Agent            AgentCmd            `cmd:"" help:"Run agent"`
-	Once             OnceCmd             `cmd:"" help:"Run once"`
-	Lambda           LambdaCmd           `cmd:"" help:"Run on AWS Lambda like once mode"`
-	Ping             PingCmd             `cmd:"" help:"Run ping probe"`
-	TCP              TCPCmd              `cmd:"" help:"Run TCP probe"`
-	HTTP             HTTPCmd             `cmd:"" help:"Run HTTP probe"`
-	FirehoseEndpoint FirehoseEndpointCmd `cmd:"" help:"Run Firehose HTTP endpoint"`
-}
-
-// VersionCmd represents the version command
-type VersionCmd struct{}
-
-// AgentCmd represents the agent command that runs continuously
-type AgentCmd struct {
-	Config               string `short:"c" help:"configuration file path or URL(http|s3)" env:"CONFIG"`
-	WithFirehoseEndpoint bool   `help:"run with firehose HTTP endpoint server"`
-	Port                 int    `help:"firehose HTTP endpoint listen port" default:"8080"`
-}
-
-// OnceCmd represents the once command that runs probes once and exits
-type OnceCmd struct {
-	Config string `short:"c" help:"configuration file path or URL(http|s3)" env:"CONFIG"`
-}
-
-// LambdaCmd represents the lambda command that runs on AWS Lambda
-type LambdaCmd struct {
-	Config string `short:"c" help:"configuration file path or URL(http|s3)" env:"CONFIG"`
-}
-
-// PingCmd represents the ping command for standalone ping probe
-type PingCmd struct {
-	Address string        `arg:"" help:"Hostname or IP address" required:""`
-	Count   int           `short:"c" help:"Iteration count"`
-	Timeout time.Duration `short:"t" help:"Timeout to ping response"`
-	HostID  string        `short:"i" help:"Mackerel host ID"`
-}
-
-// TCPCmd represents the TCP command for standalone TCP probe
-type TCPCmd struct {
-	Host               string        `arg:"" help:"Hostname or IP address" required:""`
-	Port               string        `arg:"" help:"Port number" required:""`
-	Send               string        `short:"s" help:"String to send to the server"`
-	Quit               string        `short:"q" help:"String to send server to initiate a clean close of the connection"`
-	Timeout            time.Duration `short:"t" help:"Timeout"`
-	ExpectPattern      string        `short:"e" name:"expect" help:"Regexp pattern to expect in server response"`
-	NoCheckCertificate bool          `short:"k" help:"Do not check certificate"`
-	HostID             string        `short:"i" help:"Mackerel host ID"`
-	TLS                bool          `help:"Use TLS"`
-}
-
-// HTTPCmd represents the HTTP command for standalone HTTP probe
-type HTTPCmd struct {
-	URL                string            `arg:"" help:"URL" required:""`
-	Method             string            `short:"m" help:"Request method" default:"GET"`
-	Body               string            `short:"b" help:"Request body"`
-	ExpectPattern      string            `short:"e" name:"expect" help:"Regexp pattern to expect in server response"`
-	Timeout            time.Duration     `short:"t" help:"Timeout"`
-	NoCheckCertificate bool              `short:"k" help:"Do not check certificate"`
-	Headers            map[string]string `short:"H" name:"header" help:"Request headers" placeholder:"Header: Value"`
-	HostID             string            `short:"i" help:"Mackerel host ID"`
-}
-
-// FirehoseEndpointCmd represents the firehose endpoint command for HTTP server
-type FirehoseEndpointCmd struct {
-	Port int `short:"p" help:"Listen port" default:"8080"`
-}
 
 var retryPolicy = retry.Policy{
 	MinDelay: 1 * time.Second,
@@ -507,4 +437,157 @@ func doRetry(ctx context.Context, f func() error) error {
 		return r.Err()
 	}
 	return fmt.Errorf("retry failed: %w", err)
+}
+
+// Main is the main entry point that handles CLI parsing and command execution
+func Main(ctx context.Context, args []string) error {
+	var cli CLI
+
+	// Parse command line arguments
+	parser, err := kong.New(&cli)
+	if err != nil {
+		return fmt.Errorf("failed to create parser: %w", err)
+	}
+
+	kongCtx, err := parser.Parse(args[1:]) // Skip program name
+	if err != nil {
+		return fmt.Errorf("failed to parse arguments: %w", err)
+	}
+
+	fullCommandName := kongCtx.Command()
+	// Extract the base command name (Kong may return "command <arg>" format)
+	cmdName, _, _ := strings.Cut(fullCommandName, " ")
+
+	var wg sync.WaitGroup
+
+	switch cmdName {
+	case "version":
+		fmt.Printf("maprobe version %s\n", Version)
+		return nil
+	case "agent":
+		if cli.Agent.WithFirehoseEndpoint {
+			wg.Add(1)
+			go RunFirehoseEndpoint(ctx, &wg, cli.Agent.Port)
+		}
+		wg.Add(1)
+		err = Run(ctx, &wg, cli.Agent.Config, false)
+	case "once":
+		wg.Add(1)
+		err = Run(ctx, &wg, cli.Once.Config, true)
+	case "lambda":
+		slog.Info("running on AWS Lambda", "config", cli.Lambda.Config)
+		wg.Add(1)
+		err = Run(ctx, &wg, cli.Lambda.Config, true)
+	case "ping":
+		err = runProbe(ctx, cli.Ping.HostID, &PingProbeConfig{
+			Address: cli.Ping.Address,
+			Count:   cli.Ping.Count,
+			Timeout: cli.Ping.Timeout,
+		})
+	case "tcp":
+		err = runProbe(ctx, cli.TCP.HostID, &TCPProbeConfig{
+			Host:               cli.TCP.Host,
+			Port:               cli.TCP.Port,
+			Timeout:            cli.TCP.Timeout,
+			Send:               cli.TCP.Send,
+			Quit:               cli.TCP.Quit,
+			ExpectPattern:      cli.TCP.ExpectPattern,
+			NoCheckCertificate: cli.TCP.NoCheckCertificate,
+			TLS:                cli.TCP.TLS,
+		})
+	case "http":
+		err = runProbe(ctx, cli.HTTP.HostID, &HTTPProbeConfig{
+			URL:                cli.HTTP.URL,
+			Method:             cli.HTTP.Method,
+			Body:               cli.HTTP.Body,
+			Headers:            cli.HTTP.Headers,
+			Timeout:            cli.HTTP.Timeout,
+			ExpectPattern:      cli.HTTP.ExpectPattern,
+			NoCheckCertificate: cli.HTTP.NoCheckCertificate,
+		})
+	case "firehose-endpoint":
+		wg.Add(1)
+		RunFirehoseEndpoint(ctx, &wg, cli.FirehoseEndpoint.Port)
+	default:
+		return fmt.Errorf("command %s does not exist", cmdName)
+	}
+
+	wg.Wait()
+	return err
+}
+
+func mackerelHost(id string) (*mackerel.Host, error) {
+	if apikey := os.Getenv("MACKEREL_APIKEY"); id != "" && apikey != "" {
+		slog.Debug("finding host", "id", id)
+		client := mackerel.NewClient(apikey)
+		return client.FindHost(id)
+	}
+	slog.Debug("using dummy host")
+	return &mackerel.Host{ID: "dummy"}, nil
+}
+
+func runProbe(ctx context.Context, id string, pc ProbeConfig) error {
+	slog.Debug("probe config", "config", fmt.Sprintf("%#v", pc))
+	host, err := mackerelHost(id)
+	if err != nil {
+		return err
+	}
+	slog.Debug("host", "host", marshalJSON(host))
+	p, err := pc.GenerateProbe(host)
+	if err != nil {
+		return err
+	}
+	ms, err := p.Run(ctx)
+	if len(ms) > 0 {
+		fmt.Print(ms.String())
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func marshalJSON(i interface{}) string {
+	b, _ := json.Marshal(i)
+	return string(b)
+}
+
+// SetupSlog configures structured logging
+func SetupSlog(logLevel, logFormat string) {
+	var level slog.Level
+	switch strings.ToLower(logLevel) {
+	case "trace", "debug":
+		level = slog.LevelDebug
+	case "info":
+		level = slog.LevelInfo
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	var handler slog.Handler
+
+	switch strings.ToLower(logFormat) {
+	case "json":
+		opts := &slog.HandlerOptions{
+			Level:     level,
+			AddSource: false,
+		}
+		handler = slog.NewJSONHandler(os.Stderr, opts)
+	default:
+		// Use sloghandler for colorized text output
+		opts := &sloghandler.HandlerOptions{
+			HandlerOptions: slog.HandlerOptions{
+				Level:     level,
+				AddSource: false,
+			},
+			Color: true, // Enable colorized output
+		}
+		handler = sloghandler.NewLogHandler(os.Stderr, opts)
+	}
+
+	slog.SetDefault(slog.New(handler))
 }
