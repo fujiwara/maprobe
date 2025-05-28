@@ -113,7 +113,7 @@ func (p *HTTPProbe) String() string {
 	return string(b)
 }
 
-func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
+func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {
@@ -127,10 +127,10 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		slog.Debug("http probe completed", "metrics", ms.String())
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, p.Method, p.URL, strings.NewReader(p.Body))
+	req, err := http.NewRequestWithContext(timeoutCtx, p.Method, p.URL, strings.NewReader(p.Body))
 	if err != nil {
 		slog.Warn("invalid HTTP request", "error", err)
 		return

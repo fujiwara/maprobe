@@ -1,6 +1,7 @@
 package maprobe
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -8,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
@@ -18,15 +19,19 @@ type Client struct {
 	backupClient *backupClient
 }
 
-func newClient(apiKey string, backupStream string) *Client {
+func newClient(ctx context.Context, apiKey string, backupStream string) *Client {
 	c := &Client{
 		mackerel: mackerel.NewClient(apiKey),
 	}
 	if backupStream != "" {
 		slog.Info("setting backup firehose stream", "stream", backupStream)
-		sess := session.Must(session.NewSession())
+		cfg, err := config.LoadDefaultConfig(ctx)
+		if err != nil {
+			slog.Error("failed to load AWS config", "error", err)
+			return c
+		}
 		c.backupClient = &backupClient{
-			svc:        firehose.New(sess),
+			svc:        firehose.NewFromConfig(cfg),
 			streamName: backupStream,
 		}
 	}
@@ -56,7 +61,7 @@ func (client *Client) FindHosts(p *mackerel.FindHostsParam) ([]*mackerel.Host, e
 	return hosts, nil
 }
 
-func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.MetricValue) error {
+func (c *Client) PostServiceMetricValues(ctx context.Context, serviceName string, mvs []*mackerel.MetricValue) error {
 	err := c.mackerel.PostServiceMetricValues(serviceName, mvs)
 	if err == nil {
 		return nil
@@ -65,10 +70,10 @@ func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.Met
 		return err
 	}
 	slog.Warn("failed to post metrics to mackerel", "error", err)
-	return c.backupClient.PostServiceMetricValues(serviceName, mvs)
+	return c.backupClient.PostServiceMetricValues(ctx, serviceName, mvs)
 }
 
-func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
+func (c *Client) PostHostMetricValues(ctx context.Context, mvs []*mackerel.HostMetricValue) error {
 	err := c.mackerel.PostHostMetricValues(mvs)
 	if err == nil {
 		return nil
@@ -77,7 +82,7 @@ func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
 		return err
 	}
 	slog.Warn("failed to post metrics to mackerel", "error", err)
-	return c.backupClient.PostHostMetricValues(mvs)
+	return c.backupClient.PostHostMetricValues(ctx, mvs)
 }
 
 func (c *Client) fetchLatestMetricValues(hostIDs []string, metricNames []string) (mackerel.LatestMetricValues, error) {

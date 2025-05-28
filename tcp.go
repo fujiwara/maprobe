@@ -107,7 +107,7 @@ func (p *TCPProbe) String() string {
 	return string(b)
 }
 
-func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
+func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {
@@ -122,13 +122,13 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		slog.Debug("tcp probe completed", "metrics", ms.String())
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
 	addr := net.JoinHostPort(p.Host, p.Port)
 
 	slog.Debug("dialing", "addr", addr)
-	conn, err := dialTCP(ctx, addr, p.TLS, p.NoCheckCertificate, p.Timeout)
+	conn, err := dialTCP(timeoutCtx, addr, p.TLS, p.NoCheckCertificate, p.Timeout)
 	if err != nil {
 		return ms, fmt.Errorf("connect failed: %w", err)
 	}

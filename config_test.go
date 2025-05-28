@@ -1,6 +1,7 @@
 package maprobe
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -107,7 +108,7 @@ func TestConfig(t *testing.T) {
 	}
 	os.Setenv("SERVICE", "prod")
 
-	conf, d1, err := LoadConfig("test/config.yaml")
+	conf, d1, err := LoadConfig(context.Background(), "test/config.yaml")
 	if err != nil {
 		t.Error(err)
 	}
@@ -124,7 +125,7 @@ func TestConfig(t *testing.T) {
 			t.Errorf("unexpected aggregates %d\n%s", i, diff)
 		}
 	}
-	_, d2, err := LoadConfig("test/config.copy.yaml")
+	_, d2, err := LoadConfig(context.Background(), "test/config.copy.yaml")
 	if err != nil {
 		t.Error(err)
 	}
@@ -132,7 +133,7 @@ func TestConfig(t *testing.T) {
 		t.Errorf("digest is not match %s != %s", d1, d2)
 	}
 
-	_, d3, err := LoadConfig("test/config.mod.yaml")
+	_, d3, err := LoadConfig(context.Background(), "test/config.mod.yaml")
 	if err != nil {
 		t.Error(err)
 	}

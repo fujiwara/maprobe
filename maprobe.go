@@ -124,12 +124,12 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer slog.Info("stopping maprobe")
 
 	slog.Info("starting maprobe")
-	conf, confDigest, err := LoadConfig(configPath)
+	conf, confDigest, err := LoadConfig(ctx, configPath)
 	if err != nil {
 		return err
 	}
 	slog.Debug("config", "config", conf.String())
-	client := newClient(MackerelAPIKey, conf.Backup.FirehoseStreamName)
+	client := newClient(ctx, MackerelAPIKey, conf.Backup.FirehoseStreamName)
 
 	chs := NewChannels(conf.Destination)
 	defer chs.Close()
@@ -196,7 +196,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		}
 
 		slog.Debug("checking a new config")
-		newConf, digest, err := LoadConfig(configPath)
+		newConf, digest, err := LoadConfig(ctx, configPath)
 		if err != nil {
 			slog.Warn("config load failed", "error", err)
 			slog.Warn("still using current config")
@@ -327,7 +327,7 @@ func postHostMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Clien
 		b, _ := json.Marshal(mvs)
 		slog.Debug("host metrics payload", "payload", string(b))
 		if err := doRetry(ctx, func() error {
-			return client.PostHostMetricValues(mvs)
+			return client.PostHostMetricValues(ctx, mvs)
 		}); err != nil {
 			slog.Error("failed to post host metrics to Mackerel", "error", err)
 			continue
@@ -372,7 +372,7 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 			b, _ := json.Marshal(mvs)
 			slog.Debug("service metrics payload", "payload", string(b))
 			if err := doRetry(ctx, func() error {
-				return client.PostServiceMetricValues(serviceName, mvs)
+				return client.PostServiceMetricValues(ctx, serviceName, mvs)
 			}); err != nil {
 				slog.Error("failed to post service metrics to Mackerel", "service", serviceName, "error", err)
 				continue
