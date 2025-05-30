@@ -74,6 +74,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 
 	var exporter otelsdkmetric.Exporter
 	var resource *otelsdkresource.Resource
+	var statsCollector *StatsCollector
 	if oc := conf.Destination.Otel; oc != nil && oc.Enabled {
 		var err error
 		exporter, resource, err = newOtelExporter(ctx, conf.Destination.Otel)
@@ -81,7 +82,21 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			return fmt.Errorf("failed to create OpenTelemetry meter exporter: %w", err)
 		}
 		defer exporter.Shutdown(ctx)
-		modifyLoggerWithMetricExporter(exporter, resource, oc.StatsAttributes)
+		
+		// Setup logger with metrics
+		provider := modifyLoggerWithMetricExporter(exporter, resource, oc.StatsAttributes)
+		
+		// Create stats collector
+		statsCollector, err = NewStatsCollector(provider)
+		if err != nil {
+			slog.Error("failed to create stats collector", "error", err)
+			statsCollector = nil // Continue without stats metrics
+		}
+	}
+
+	// Set probe configs count for stats
+	if statsCollector != nil {
+		statsCollector.SetProbeConfigs(int64(len(conf.Probes)))
 	}
 
 	if len(conf.Probes) > 0 {
@@ -127,7 +142,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 		var wg2 sync.WaitGroup
 		for _, pd := range conf.Probes {
 			wg2.Add(1)
-			go pd.RunProbes(ctx, client, chs, &wg2)
+			go pd.RunProbes(ctx, client, chs, statsCollector, &wg2)
 		}
 		for _, ag := range conf.Aggregates {
 			wg2.Add(1)
@@ -619,7 +634,7 @@ func SetupLogger(logLevel, logFormat string) {
 	slog.SetDefault(logger)
 }
 
-func modifyLoggerWithMetricExporter(exporter otelsdkmetric.Exporter, resource *otelsdkresource.Resource, attrs map[string]string) {
+func modifyLoggerWithMetricExporter(exporter otelsdkmetric.Exporter, resource *otelsdkresource.Resource, attrs map[string]string) *otelsdkmetric.MeterProvider {
 	slog.Info("modifying logger with metric exporter", "exporter", fmt.Sprintf("%T", exporter))
 	reader := otelsdkmetric.NewPeriodicReader(exporter)
 	provider := otelsdkmetric.NewMeterProvider(
@@ -639,8 +654,11 @@ func modifyLoggerWithMetricExporter(exporter otelsdkmetric.Exporter, resource *o
 		"messages",
 		otelmetric.WithDescription("Number of log messages by level"),
 	)
+
 	otel.SetMeterProvider(provider)
 
 	handler := otelmetrics.NewHandler(slog.Default().Handler(), counter)
 	slog.SetDefault(slog.New(handler))
+	
+	return provider
 }
