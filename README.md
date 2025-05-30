@@ -160,6 +160,11 @@ destination:
     enabled: true
     endpoint: localhost:4317
     insecure: true
+    resource_attributes: # OpenTelemetry resource attributes (for all metrics)
+      deployment.environment.name: production
+    stats_attributes: # for maprobe internal metrics
+      service.name: maprobe
+      service.namespace: my-namespace
 ```
 
 Extra attributes can be added to metrics by `attributes` in probe configuration.
