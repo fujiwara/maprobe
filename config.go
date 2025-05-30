@@ -39,9 +39,11 @@ type MackerelConfig struct {
 }
 
 type OtelConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	Endpoint string `yaml:"endpoint"`
-	Insecure bool   `yaml:"insecure"`
+	Enabled            bool              `yaml:"enabled"`
+	Endpoint           string            `yaml:"endpoint"`
+	Insecure           bool              `yaml:"insecure"`
+	ResourceAttributes map[string]string `yaml:"resource_attributes"`
+	StatsAttributes    map[string]string `yaml:"stats_attributes"`
 }
 
 type DestinationConfig struct {

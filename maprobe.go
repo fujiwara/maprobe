@@ -73,14 +73,15 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 	defer chs.Close()
 
 	var exporter otelsdkmetric.Exporter
-	if conf.Destination.Otel.Enabled {
+	var resource *otelsdkresource.Resource
+	if oc := conf.Destination.Otel; oc != nil && oc.Enabled {
 		var err error
-		exporter, err = newOtelExporter(ctx, conf.Destination.Otel)
+		exporter, resource, err = newOtelExporter(ctx, conf.Destination.Otel)
 		if err != nil {
 			return fmt.Errorf("failed to create OpenTelemetry meter exporter: %w", err)
 		}
 		defer exporter.Shutdown(ctx)
-		modifyLoggerWithMetricExporter(exporter)
+		modifyLoggerWithMetricExporter(exporter, resource, oc.StatsAttributes)
 	}
 
 	if len(conf.Probes) > 0 {
@@ -92,7 +93,7 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			}
 			if conf.Destination.Otel.Enabled {
 				wg.Add(1)
-				go postOtelMetricWorker(ctx, wg, exporter, chs)
+				go postOtelMetricWorker(ctx, wg, exporter, resource, chs)
 			}
 		} else {
 			if conf.Destination.Mackerel.Enabled {
@@ -334,10 +335,9 @@ func postServiceMetricWorker(ctx context.Context, wg *sync.WaitGroup, client *Cl
 	}
 }
 
-func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, exporter otelsdkmetric.Exporter, chs *Channels) {
+func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, exporter otelsdkmetric.Exporter, resource *otelsdkresource.Resource, chs *Channels) {
 	defer wg.Done()
 	slog.Info("starting postOtelMetricWorker")
-	attrs := otelsdkresource.NewSchemaless()
 
 	ticker := time.NewTicker(10 * time.Second)
 	mvs := make([]otelsdkmetricdata.Metrics, 0, PostMetricBufferLength)
@@ -362,7 +362,7 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, exporter otel
 		}
 		slog.Debug("posting otel metrics", "count", len(mvs))
 		rms := &otelsdkmetricdata.ResourceMetrics{
-			Resource: attrs,
+			Resource: resource,
 			ScopeMetrics: []otelsdkmetricdata.ScopeMetrics{
 				{Metrics: mvs},
 			},
@@ -379,7 +379,7 @@ func postOtelMetricWorker(ctx context.Context, wg *sync.WaitGroup, exporter otel
 	}
 }
 
-func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Exporter, error) {
+func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Exporter, *otelsdkresource.Resource, error) {
 	opts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithHeaders(map[string]string{"Mackerel-Api-Key": MackerelAPIKey}),
 		otlpmetricgrpc.WithCompressor("gzip"),
@@ -401,9 +401,21 @@ func newOtelExporter(ctx context.Context, oc *OtelConfig) (*otlpmetricgrpc.Expor
 
 	exporter, err := otlpmetricgrpc.New(ctx, opts...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return exporter, nil
+
+	// Create Resource with resource_attributes
+	resourceAttrs := make([]otelattribute.KeyValue, 0, len(oc.ResourceAttributes))
+	for k, v := range oc.ResourceAttributes {
+		resourceAttrs = append(resourceAttrs, otelattribute.String(k, v))
+	}
+	resource, err := otelsdkresource.New(ctx, otelsdkresource.WithAttributes(resourceAttrs...))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+	slog.Info("otel exporter created", "resource", resource.String())
+
+	return exporter, resource, nil
 }
 
 func dumpHostMetricWorker(_ context.Context, wg *sync.WaitGroup, chs *Channels) {
@@ -607,14 +619,21 @@ func SetupLogger(logLevel, logFormat string) {
 	slog.SetDefault(logger)
 }
 
-func modifyLoggerWithMetricExporter(exporter otelsdkmetric.Exporter) {
+func modifyLoggerWithMetricExporter(exporter otelsdkmetric.Exporter, resource *otelsdkresource.Resource, attrs map[string]string) {
 	slog.Info("modifying logger with metric exporter", "exporter", fmt.Sprintf("%T", exporter))
 	reader := otelsdkmetric.NewPeriodicReader(exporter)
-	provider := otelsdkmetric.NewMeterProvider(otelsdkmetric.WithReader(reader))
+	provider := otelsdkmetric.NewMeterProvider(
+		otelsdkmetric.WithReader(reader),
+		otelsdkmetric.WithResource(resource),
+	)
+
+	meterOpts := make([]otelmetric.MeterOption, 0, len(attrs))
+	for k, v := range attrs {
+		meterOpts = append(meterOpts, otelmetric.WithInstrumentationAttributes(otelattribute.String(k, v)))
+	}
 	meter := provider.Meter(
 		"maprobe/logs",
-		// TODO optional attributes
-		otelmetric.WithInstrumentationAttributes(otelattribute.String("service.name", "maprobe")),
+		meterOpts...,
 	)
 	counter, _ := meter.Int64Counter(
 		"messages",
