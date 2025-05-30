@@ -3,6 +3,7 @@ package maprobe
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	otelattribute "go.opentelemetry.io/otel/attribute"
@@ -31,6 +32,7 @@ func (s *StatsCollector) SetProbeConfigs(count int64) {
 		return
 	}
 	atomic.StoreInt64(&s.currentProbeConfigs, count)
+	slog.Debug("stats: probe configs updated", "count", count)
 }
 
 // SetTargetCounts sets the number of target hosts and services
@@ -40,6 +42,7 @@ func (s *StatsCollector) SetTargetCounts(hosts, services int64) {
 	}
 	atomic.StoreInt64(&s.currentTargetHosts, hosts)
 	atomic.StoreInt64(&s.currentTargetServices, services)
+	slog.Debug("stats: target counts updated", "hosts", hosts, "services", services)
 }
 
 // RecordProbeExecution records a probe execution result
@@ -58,6 +61,7 @@ func (s *StatsCollector) RecordProbeExecution(ctx context.Context, probe Probe, 
 		otelmetric.WithAttributes(
 			otelattribute.String("status", status),
 			otelattribute.String("probe_type", probeType)))
+	slog.Debug("stats: probe execution recorded", "status", status, "probe_type", probeType)
 }
 
 // RecordMetricCollected records that a metric was collected
@@ -66,6 +70,7 @@ func (s *StatsCollector) RecordMetricCollected(ctx context.Context) {
 		return
 	}
 	s.metricsCollectedCounter.Add(ctx, 1)
+	slog.Debug("stats: metric collected")
 }
 
 // getProbeType returns the probe type string
@@ -85,13 +90,17 @@ func getProbeType(probe Probe) string {
 }
 
 // NewStatsCollector creates a new StatsCollector
-func NewStatsCollector(provider *otelsdkmetric.MeterProvider) (*StatsCollector, error) {
+func NewStatsCollector(provider *otelsdkmetric.MeterProvider, attrs map[string]string) (*StatsCollector, error) {
 	if provider == nil {
 		return nil, nil
 	}
+	meterOpts := make([]otelmetric.MeterOption, 0, len(attrs))
+	for k, v := range attrs {
+		meterOpts = append(meterOpts, otelmetric.WithInstrumentationAttributes(otelattribute.String(k, v)))
+	}
 
 	s := &StatsCollector{
-		meter: provider.Meter("maprobe/stats"),
+		meter: provider.Meter("maprobe/stats", meterOpts...),
 	}
 
 	var err error

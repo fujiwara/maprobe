@@ -82,12 +82,12 @@ func Run(ctx context.Context, wg *sync.WaitGroup, configPath string, once bool) 
 			return fmt.Errorf("failed to create OpenTelemetry meter exporter: %w", err)
 		}
 		defer exporter.Shutdown(ctx)
-		
+
 		// Setup logger with metrics
 		provider := modifyLoggerWithMetricExporter(exporter, resource, oc.StatsAttributes)
-		
+
 		// Create stats collector
-		statsCollector, err = NewStatsCollector(provider)
+		statsCollector, err = NewStatsCollector(provider, oc.StatsAttributes)
 		if err != nil {
 			slog.Error("failed to create stats collector", "error", err)
 			statsCollector = nil // Continue without stats metrics
@@ -659,6 +659,6 @@ func modifyLoggerWithMetricExporter(exporter otelsdkmetric.Exporter, resource *o
 
 	handler := otelmetrics.NewHandler(slog.Default().Handler(), counter)
 	slog.SetDefault(slog.New(handler))
-	
+
 	return provider
 }
