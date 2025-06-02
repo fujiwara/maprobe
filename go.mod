@@ -6,7 +6,7 @@ toolchain go1.24.3
 
 require (
 	github.com/alecthomas/kong v1.4.0
-	github.com/aws/aws-lambda-go v1.48.0
+	github.com/aws/aws-lambda-go v1.49.0
 	github.com/aws/aws-sdk-go-v2 v1.25.1
 	github.com/aws/aws-sdk-go-v2/config v1.27.0
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.15.0
