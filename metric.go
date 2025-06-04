@@ -155,10 +155,10 @@ func (a *Attribute) Otel() *otelattribute.Set {
 	for k, v := range a.Extra {
 		kvs = append(kvs, otelattribute.String(k, v))
 	}
-	kvs = append(kvs,
-		semconv.ServiceName(a.Service),
-		semconv.HostID(a.HostID),
-	)
+	kvs = append(kvs, semconv.ServiceName(a.Service))
+	if a.HostID != "" {
+		kvs = append(kvs, semconv.HostID(a.HostID))
+	}
 	s := otelattribute.NewSet(kvs...)
 	return &s
 }
