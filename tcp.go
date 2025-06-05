@@ -36,6 +36,7 @@ type TCPProbeConfig struct {
 
 func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &TCPProbe{
+		hostID:             host.ID,
 		metricKeyPrefix:    pc.MetricKeyPrefix,
 		Timeout:            pc.Timeout,
 		MaxBytes:           pc.MaxBytes,
@@ -85,6 +86,7 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 }
 
 type TCPProbe struct {
+	hostID          string
 	metricKeyPrefix string
 
 	Host               string
@@ -96,6 +98,10 @@ type TCPProbe struct {
 	Timeout            time.Duration
 	TLS                bool
 	NoCheckCertificate bool
+}
+
+func (p *TCPProbe) HostID() string {
+	return p.hostID
 }
 
 func (p *TCPProbe) MetricName(name string) string {
@@ -136,6 +142,20 @@ func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	conn.SetDeadline(time.Now().Add(p.Timeout))
 
 	slog.Debug("connected", "addr", addr)
+
+	// Add certificate expiration metric for TLS connections
+	if p.TLS {
+		if tlsConn, ok := conn.(*tls.Conn); ok {
+			state := tlsConn.ConnectionState()
+			if len(state.PeerCertificates) > 0 {
+				cert := state.PeerCertificates[0]
+				expiresInDays := time.Until(cert.NotAfter).Hours() / 24
+				ms = append(ms, newMetric(p, "certificate.expires_in_days", expiresInDays))
+				slog.Debug("certificate expiration", "expires_at", cert.NotAfter, "expires_in_days", expiresInDays)
+			}
+		}
+	}
+
 	if p.Send != "" {
 		slog.Debug("send", "data", p.Send)
 		_, err := io.WriteString(conn, p.Send)

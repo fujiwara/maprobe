@@ -268,6 +268,7 @@ TCP probe generates the following metrics.
 
 - tcp.check.ok (0 or 1)
 - tcp.elapsed.seconds (seconds)
+- tcp.certificate.expires_in_days (days until TLS certificate expires, only for TLS connections)
 
 ### HTTP
 
@@ -292,6 +293,7 @@ HTTP probe generates the following metrics.
 - http.response_time.seconds (seconds)
 - http.status.code (100~)
 - http.content.length (bytes)
+- http.certificate.expires_in_days (days until SSL/TLS certificate expires, only for HTTPS URLs)
 
 When a status code is grather than 400, http.check.ok set to 0.
 

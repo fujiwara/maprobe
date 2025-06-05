@@ -153,6 +153,14 @@ func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	}
 	defer resp.Body.Close()
 
+	// Add certificate expiration metric for HTTPS
+	if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
+		cert := resp.TLS.PeerCertificates[0]
+		expiresInDays := time.Until(cert.NotAfter).Hours() / 24
+		ms = append(ms, newMetric(p, "certificate.expires_in_days", expiresInDays))
+		slog.Debug("certificate expiration", "expires_at", cert.NotAfter, "expires_in_days", expiresInDays)
+	}
+
 	ms = append(ms, newMetric(p, "status.code", float64(resp.StatusCode)))
 	if resp.StatusCode >= 400 {
 		ok = false
