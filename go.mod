@@ -16,7 +16,7 @@ require (
 	github.com/fujiwara/ridge v0.13.0
 	github.com/fujiwara/sloghandler v0.0.5
 	github.com/fujiwara/sloghandler/otelmetrics v0.0.5
-	github.com/goccy/go-yaml v1.17.1
+	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gops v0.3.28
 	github.com/mackerelio/mackerel-client-go v0.37.0
