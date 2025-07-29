@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.8.1](https://github.com/fujiwara/maprobe/compare/v0.8.0...v0.8.1) - 2025-07-29
+- Do not overwrite service.name by @fujiwara in https://github.com/fujiwara/maprobe/pull/118
+
 ## [v0.8.0](https://github.com/fujiwara/maprobe/compare/v0.7.7...v0.8.0) - 2025-07-29
 - Bump github.com/fujiwara/ridge from 0.6.2 to 0.13.0 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/93
 - modernization by @fujiwara in https://github.com/fujiwara/maprobe/pull/98
