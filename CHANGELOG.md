@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.8.0](https://github.com/fujiwara/maprobe/compare/v0.7.7...v0.8.0) - 2025-07-29
+- Bump github.com/fujiwara/ridge from 0.6.2 to 0.13.0 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/93
+- modernization by @fujiwara in https://github.com/fujiwara/maprobe/pull/98
+- replace kingpin with kong for CLI parsing by @fujiwara in https://github.com/fujiwara/maprobe/pull/99
+- Add slog support by @fujiwara in https://github.com/fujiwara/maprobe/pull/101
+- Migrate aws sdk go v2 by @fujiwara in https://github.com/fujiwara/maprobe/pull/102
+- Add structured logging with slog and OpenTelemetry metrics integration by @fujiwara in https://github.com/fujiwara/maprobe/pull/103
+- Add host.id to otel metrics if not empty. by @fujiwara in https://github.com/fujiwara/maprobe/pull/108
+- Add certificate expiration metrics by @fujiwara in https://github.com/fujiwara/maprobe/pull/109
+- Update Go toolchain to go1.24.4 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/110
+- Update Go toolchain to go1.24.5 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/114
+- Release for v0.8.0 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/100
+
 ## [v0.8.0](https://github.com/fujiwara/maprobe/compare/v0.7.7...v0.8.0) - 2025-07-27
 - Bump github.com/fujiwara/ridge from 0.6.2 to 0.13.0 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/93
 - modernization by @fujiwara in https://github.com/fujiwara/maprobe/pull/98
