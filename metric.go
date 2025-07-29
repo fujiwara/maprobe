@@ -152,10 +152,17 @@ func (a *Attribute) SetExtra(ex map[string]string, host *mackerel.Host) {
 
 func (a *Attribute) Otel() *otelattribute.Set {
 	kvs := make([]otelattribute.KeyValue, 0, len(a.Extra)+2)
+	var serviceNameSet bool
 	for k, v := range a.Extra {
 		kvs = append(kvs, otelattribute.String(k, v))
+		if k == string(semconv.ServiceNameKey) {
+			serviceNameSet = true
+		}
 	}
-	kvs = append(kvs, semconv.ServiceName(a.Service))
+	if !serviceNameSet {
+		// set service name if not already set
+		kvs = append(kvs, semconv.ServiceName(a.Service))
+	}
 	if a.HostID != "" {
 		kvs = append(kvs, semconv.HostID(a.HostID))
 	}
