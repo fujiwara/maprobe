@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.9.0](https://github.com/fujiwara/maprobe/compare/v0.8.1...v0.9.0) - 2025-08-01
+- Add gRPC probe support with Health Checking Protocol by @fujiwara in https://github.com/fujiwara/maprobe/pull/120
+- Bump github.com/fujiwara/ridge from 0.13.0 to 0.13.1 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/116
+- Update Go module dependencies by @fujiwara in https://github.com/fujiwara/maprobe/pull/122
+
 ## [v0.8.1](https://github.com/fujiwara/maprobe/compare/v0.8.0...v0.8.1) - 2025-07-29
 - Do not overwrite service.name by @fujiwara in https://github.com/fujiwara/maprobe/pull/118
 
