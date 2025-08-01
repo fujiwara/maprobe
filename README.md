@@ -108,7 +108,7 @@ probes:
     role: webserver
     http:
       url: 'http://{{ .Host.CustomIdentifier }}/api/healthcheck'
-      post: POST
+      method: POST
       headers:
         Content-Type: application/json
       body: '{"hello":"world"}'

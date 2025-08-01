@@ -133,9 +133,9 @@ func (p *GRPCProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	}
 
 	slog.Debug("dialing grpc", "address", p.Address)
-	conn, err := grpc.DialContext(timeoutCtx, p.Address, opts...)
+	conn, err := grpc.NewClient(p.Address, opts...)
 	if err != nil {
-		return ms, fmt.Errorf("failed to dial: %w", err)
+		return nil, fmt.Errorf("failed to create gRPC client: %w", err)
 	}
 	defer conn.Close()
 
