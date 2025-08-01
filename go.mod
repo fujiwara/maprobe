@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/firehose v1.28.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.48.0
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.49.0
-	github.com/fujiwara/ridge v0.13.0
+	github.com/fujiwara/ridge v0.13.1
 	github.com/fujiwara/sloghandler v0.0.5
 	github.com/fujiwara/sloghandler/otelmetrics v0.0.5
 	github.com/goccy/go-yaml v1.17.1

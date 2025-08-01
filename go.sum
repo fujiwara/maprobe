@@ -55,8 +55,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
 github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=
-github.com/fujiwara/ridge v0.13.0 h1:RdlfmQped/JQRdz8KdcKlGdt7NYSG+AwHFpPa7mc2YY=
-github.com/fujiwara/ridge v0.13.0/go.mod h1:7IU7WrUos8KCYiNytBRCl9Q2x+XMdmeTZFWsVH33nhM=
+github.com/fujiwara/ridge v0.13.1 h1:FXm00ucN+bt+S6AEWNlbf6CVcOYWjC5Ju6uS5ITFrH0=
+github.com/fujiwara/ridge v0.13.1/go.mod h1:7IU7WrUos8KCYiNytBRCl9Q2x+XMdmeTZFWsVH33nhM=
 github.com/fujiwara/sloghandler v0.0.5 h1:YoWsgm9SrZfUsv5mu0vve7LNZ+6hJ5ZbGlI7rzZPKVA=
 github.com/fujiwara/sloghandler v0.0.5/go.mod h1:hX1CZHkFAiSXOaDhL3qSCcr1p1pL/gYPERs8+5E5nYc=
 github.com/fujiwara/sloghandler/otelmetrics v0.0.5 h1:AZZ+yFsL5m1g1ofBX1JV+8yXEVBL5vPe6fd2xAObkNc=
