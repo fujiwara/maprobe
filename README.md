@@ -64,6 +64,9 @@ Commands:
   http [<flags>] <url>
     Run HTTP probe
 
+  grpc [<flags>] <address>
+    Run gRPC probe
+
   firehose-endpoint [<flags>]
     Run Firehose HTTP endpoint
 ```
@@ -127,6 +130,15 @@ probes:
     attributes: # supoort OpenTelemetry attributes
       - service.namespaece: redis
       - host.name: "{{ .Host.Name }}"
+
+  - service: production
+    role: api
+    grpc:
+      address: '{{ .Host.IPAddress.eth0 }}:50051'
+      grpc_service: "api.v1.UserService"
+      metadata:
+        authorization: "Bearer {{ env "API_TOKEN" }}"
+      tls: true
 
   - service: production
     service_metric: true # post metrics as service metrics
@@ -296,6 +308,30 @@ HTTP probe generates the following metrics.
 - http.certificate.expires_in_days (days until SSL/TLS certificate expires, only for HTTPS URLs)
 
 When a status code is grather than 400, http.check.ok set to 0.
+
+### gRPC
+
+gRPC probe checks the health of a gRPC service using the standard gRPC Health Checking Protocol.
+
+```yaml
+grpc:
+  address: "localhost:50051"     # gRPC server address (required)
+  grpc_service: ""               # Service name for health check (empty for overall server health)
+  timeout: 10s                   # Timeout (default 10s)
+  tls: false                     # Use TLS for connection
+  no_check_certificate: false    # Do not check certificate
+  metadata:                      # gRPC metadata (for authentication, etc.)
+    authorization: "Bearer token"
+  metric_key_prefix:             # default grpc
+```
+
+gRPC probe generates the following metrics.
+
+- grpc.check.ok (0 or 1)
+- grpc.elapsed.seconds (seconds)
+- grpc.status.code (gRPC status code, 0 = OK)
+
+The probe uses the standard [gRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). When `grpc_service` is empty, it checks the overall server health. When specified, it checks the health of that specific service.
 
 ### Command
 

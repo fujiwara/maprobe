@@ -15,6 +15,7 @@ type CLI struct {
 	Ping             PingCmd             `cmd:"" help:"Run ping probe"`
 	TCP              TCPCmd              `cmd:"" help:"Run TCP probe"`
 	HTTP             HTTPCmd             `cmd:"" help:"Run HTTP probe"`
+	GRPC             GRPCCmd             `cmd:"" help:"Run gRPC probe"`
 	FirehoseEndpoint FirehoseEndpointCmd `cmd:"" help:"Run Firehose HTTP endpoint"`
 }
 
@@ -69,6 +70,17 @@ type HTTPCmd struct {
 	NoCheckCertificate bool              `short:"k" help:"Do not check certificate"`
 	Headers            map[string]string `short:"H" name:"header" help:"Request headers" placeholder:"Header: Value"`
 	HostID             string            `short:"i" help:"Mackerel host ID"`
+}
+
+// GRPCCmd represents the gRPC command for standalone gRPC probe
+type GRPCCmd struct {
+	Address            string            `arg:"" help:"gRPC server address (host:port)" required:""`
+	GRPCService        string            `short:"s" name:"service" help:"gRPC service name for health check"`
+	Timeout            time.Duration     `short:"t" help:"Timeout"`
+	NoCheckCertificate bool              `short:"k" help:"Do not check certificate"`
+	Metadata           map[string]string `short:"m" name:"metadata" help:"gRPC metadata" placeholder:"key:value"`
+	HostID             string            `short:"i" help:"Mackerel host ID"`
+	TLS                bool              `help:"Use TLS"`
 }
 
 // FirehoseEndpointCmd represents the firehose endpoint command for HTTP server
