@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.9.2](https://github.com/fujiwara/maprobe/compare/v0.9.1...v0.9.2) - 2025-08-04
+- retrive TLS certificate expiration on grpc probe. by @fujiwara in https://github.com/fujiwara/maprobe/pull/125
+
 ## [v0.9.1](https://github.com/fujiwara/maprobe/compare/v0.9.0...v0.9.1) - 2025-08-02
 - use version file by @fujiwara in https://github.com/fujiwara/maprobe/pull/123
 
