@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 )
 
 var (
@@ -141,13 +142,6 @@ func (p *GRPCProbe) Run(ctx context.Context) (ms Metrics, err error) {
 
 	slog.Debug("connected", "address", p.Address)
 
-	// Add certificate expiration metric for TLS connections
-	if p.TLS {
-		// Note: gRPC doesn't expose certificate details directly like net/http
-		// This would require additional implementation if needed
-		// For now, we'll skip certificate expiration for gRPC
-	}
-
 	// Create health check client
 	healthClient := healthpb.NewHealthClient(conn)
 
@@ -156,8 +150,12 @@ func (p *GRPCProbe) Run(ctx context.Context) (ms Metrics, err error) {
 		Service: p.GRPCService,
 	}
 
+	var pe peer.Peer
+	callerOpts := []grpc.CallOption{
+		grpc.Peer(&pe),
+	}
 	slog.Debug("health check", "grpc_service", p.GRPCService)
-	resp, err := healthClient.Check(timeoutCtx, req)
+	resp, err := healthClient.Check(timeoutCtx, req, callerOpts...)
 	if err != nil {
 		// Add gRPC status code if available
 		if grpcErr, ok := err.(interface {
@@ -167,6 +165,18 @@ func (p *GRPCProbe) Run(ctx context.Context) (ms Metrics, err error) {
 			ms = append(ms, newMetric(p, "status.code", float64(statusCode)))
 		}
 		return ms, fmt.Errorf("health check failed: %w", err)
+	}
+	slog.Debug("peer", "info", pe.String())
+	if pe.AuthInfo != nil {
+		// Add certificate expiration metric for TLS connections
+		if tlsInfo, ok := pe.AuthInfo.(credentials.TLSInfo); ok {
+			if len(tlsInfo.State.PeerCertificates) > 0 {
+				cert := tlsInfo.State.PeerCertificates[0]
+				expiresInDays := time.Until(cert.NotAfter).Hours() / 24
+				ms = append(ms, newMetric(p, "certificate.expires_in_days", expiresInDays))
+				slog.Debug("certificate expiration", "expires_at", cert.NotAfter, "expires_in_days", expiresInDays)
+			}
+		}
 	}
 
 	// Add status code (0 = OK)

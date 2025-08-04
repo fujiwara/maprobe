@@ -251,6 +251,7 @@ func TestGRPCProbe(t *testing.T) {
 				prefix = tt.config.MetricKeyPrefix
 			}
 
+			var foundCertMetric bool
 			for _, m := range ms {
 				switch m.Name {
 				case prefix + ".elapsed.seconds":
@@ -269,7 +270,16 @@ func TestGRPCProbe(t *testing.T) {
 					if tt.expectedStatus != 0 && m.Value != tt.expectedStatus {
 						t.Errorf("status.code = %f, want %f", m.Value, tt.expectedStatus)
 					}
+				case prefix + ".certificate.expires_in_days":
+					foundCertMetric = true
+					// Should be around 30 days (certificate expires in 30 days)
+					if m.Value < 29 || m.Value > 31 {
+						t.Errorf("unexpected certificate expiration days: %f", m.Value)
+					}
 				}
+			}
+			if tt.config.TLS && !foundCertMetric {
+				t.Error("certificate.expires_in_days metric not found")
 			}
 			t.Log(ms.String())
 		})
