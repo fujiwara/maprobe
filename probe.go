@@ -3,7 +3,7 @@ package maprobe
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -78,10 +78,10 @@ func expandPlaceHolder(src string, host *mackerel.Host, env map[string]string) (
 	var tmpl *template.Template
 	key := expandCacheKey(src, env)
 	if _tmpl, ok := expandCache.Load(key); ok {
-		log.Println("[trace] expand cache HIT", key)
+		slog.Debug("expand cache HIT", "key", key)
 		tmpl = _tmpl.(*template.Template)
 	} else {
-		log.Println("[trace] expand cache MISS", key)
+		slog.Debug("expand cache MISS", "key", key)
 		tmpl, err = template.New(key).Funcs(newFuncMap(env)).Parse(src)
 		if err != nil {
 			return "", err
@@ -94,26 +94,21 @@ func expandPlaceHolder(src string, host *mackerel.Host, env map[string]string) (
 	return b.String(), err
 }
 
-func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, chs *Channels, wg *sync.WaitGroup) {
+func (pd *ProbeDefinition) RunProbes(ctx context.Context, client *Client, chs *Channels, stats *StatsCollector, wg *sync.WaitGroup) {
 	defer wg.Done()
 	if pd.IsServiceMetric {
-		for _, m := range pd.RunServiceProbes(ctx, client) {
+		for _, m := range pd.RunServiceProbes(ctx, client, stats) {
 			chs.SendServiceMetric(m)
 		}
 	} else {
-		for _, m := range pd.RunHostProbes(ctx, client) {
+		for _, m := range pd.RunHostProbes(ctx, client, stats) {
 			chs.SendHostMetric(m)
 		}
 	}
 }
 
-func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []HostMetric {
-	log.Printf(
-		"[debug] probes finding hosts service:%s roles:%s statuses:%v",
-		pd.Service,
-		pd.Roles,
-		pd.Statuses,
-	)
+func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client, stats *StatsCollector) []HostMetric {
+	slog.Debug("probes finding hosts", "service", pd.Service, "roles", pd.Roles, "statuses", pd.Statuses)
 	roles := exStrings(pd.Roles)
 	statuses := exStrings(pd.Statuses)
 	ms := []HostMetric{}
@@ -124,10 +119,12 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []
 		Statuses: statuses,
 	})
 	if err != nil {
-		log.Println("[error] probes find host failed", err)
+		slog.Error("probes find host failed", "error", err)
 		return nil
 	}
-	log.Printf("[debug] probes %d hosts found", len(hosts))
+	slog.Debug("probes hosts found", "count", len(hosts))
+	// Update target hosts count for stats
+	stats.SetTargetCounts(int64(len(hosts)), 0)
 	if len(hosts) == 0 {
 		return nil
 	}
@@ -140,18 +137,21 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []
 	wg := &sync.WaitGroup{}
 	for _, host := range hosts {
 		time.Sleep(spawnInterval)
-		log.Printf("[debug] probes preparing host id:%s name:%s", host.ID, host.Name)
+		slog.Debug("probes preparing host", "hostID", host.ID, "hostName", host.Name)
 		wg.Add(1)
 		go func(host *mackerel.Host) {
 			lock()
 			defer unlock()
 			defer wg.Done()
 			for _, probe := range pd.GenerateProbes(host, client.mackerel) {
-				log.Printf("[debug] probing host id:%s name:%s probe:%s", host.ID, host.Name, probe)
+				slog.Debug("probing host", "hostID", host.ID, "hostName", host.Name, "probe", probe)
 				metrics, err := probe.Run(ctx)
+
+				// Update probe execution stats
 				if err != nil {
-					log.Printf("[warn] probe failed. %s host id:%s name:%s probe:%s", err, host.ID, host.Name, probe)
+					slog.Warn("probe failed", "error", err, "hostID", host.ID, "hostName", host.Name, "probe", probe)
 				}
+				stats.RecordProbeExecution(ctx, probe, err)
 				for _, m := range metrics {
 					m.Attribute = &Attribute{
 						Service: pd.Service.String(),
@@ -159,6 +159,9 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []
 					}
 					m.Attribute.SetExtra(pd.Attributes, host)
 					ms = append(ms, m.HostMetric(host.ID))
+
+					// Update metrics collected counter
+					stats.RecordMetricCollected(ctx)
 				}
 			}
 		}(host)
@@ -167,12 +170,11 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client) []
 	return ms
 }
 
-func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client) []ServiceMetric {
+func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client, stats *StatsCollector) []ServiceMetric {
 	serviceName := pd.Service.String()
-	log.Printf(
-		"[debug] probes for service metric service:%s",
-		serviceName,
-	)
+	slog.Debug("probes for service metric", "service", serviceName)
+	// Update target services count for stats (set to 1 for this service)
+	stats.SetTargetCounts(0, 1)
 	lock()
 	defer unlock()
 	host := &mackerel.Host{
@@ -181,17 +183,23 @@ func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client)
 	}
 	ms := []ServiceMetric{}
 	for _, probe := range pd.GenerateProbes(host, client.mackerel) {
-		log.Printf("[debug] probing service:%s probe:%s", serviceName, probe)
+		slog.Debug("probing service", "service", serviceName, "probe", probe)
 		metrics, err := probe.Run(ctx)
+
+		// Update probe execution stats
 		if err != nil {
-			log.Printf("[warn] probe failed. %s service:%s probe:%s", err, serviceName, probe)
+			slog.Warn("probe failed", "error", err, "service", serviceName, "probe", probe)
 		}
+		stats.RecordProbeExecution(ctx, probe, err)
 		for _, m := range metrics {
 			m.Attribute = &Attribute{
 				Service: serviceName,
 			}
 			m.Attribute.SetExtra(pd.Attributes, host)
 			ms = append(ms, m.ServiceMetric(serviceName))
+
+			// Update metrics collected counter
+			stats.RecordMetricCollected(ctx)
 		}
 	}
 	return ms

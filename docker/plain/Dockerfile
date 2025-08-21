@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.21.5-bullseye AS build-env
+FROM --platform=${BUILDPLATFORM} golang:1.24-bookworm AS build-env
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -12,8 +12,8 @@ COPY . /go/src/github.com/fujiwara/maprobe
 WORKDIR /go/src/github.com/fujiwara/maprobe
 RUN make install
 
-FROM alpine:3.12
-LABEL maintainer "fujiwara <fujiwara.shunichiro@gmail.com>"
+FROM alpine:3.21
+LABEL maintainer="fujiwara <fujiwara.shunichiro@gmail.com>"
 
 RUN apk --no-cache add ca-certificates
 COPY --from=build-env /go/bin/maprobe /usr/bin

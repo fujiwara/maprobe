@@ -5,14 +5,14 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"regexp"
 	"time"
 
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -36,6 +36,7 @@ type TCPProbeConfig struct {
 
 func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	p := &TCPProbe{
+		hostID:             host.ID,
 		metricKeyPrefix:    pc.MetricKeyPrefix,
 		Timeout:            pc.Timeout,
 		MaxBytes:           pc.MaxBytes,
@@ -46,28 +47,28 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 
 	p.Host, err = expandPlaceHolder(pc.Host, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid host")
+		return nil, fmt.Errorf("invalid host: %w", err)
 	}
 
 	p.Port, err = expandPlaceHolder(pc.Port, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invaild port")
+		return nil, fmt.Errorf("invalid port: %w", err)
 	}
 
 	p.Send, err = expandPlaceHolder(pc.Send, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid send")
+		return nil, fmt.Errorf("invalid send: %w", err)
 	}
 
 	var pattern string
 	pattern, err = expandPlaceHolder(pc.ExpectPattern, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid expect_pattern")
+		return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 	}
 	if pattern != "" {
 		p.ExpectPattern, err = regexp.Compile(pattern)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid expect_pattern")
+			return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 		}
 	}
 
@@ -85,6 +86,7 @@ func (pc *TCPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 }
 
 type TCPProbe struct {
+	hostID          string
 	metricKeyPrefix string
 
 	Host               string
@@ -98,6 +100,10 @@ type TCPProbe struct {
 	NoCheckCertificate bool
 }
 
+func (p *TCPProbe) HostID() string {
+	return p.hostID
+}
+
 func (p *TCPProbe) MetricName(name string) string {
 	return p.metricKeyPrefix + "." + name
 }
@@ -107,11 +113,11 @@ func (p *TCPProbe) String() string {
 	return string(b)
 }
 
-func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
+func (p *TCPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {
-		log.Println("[debug] defer", ok)
+		slog.Debug("tcp probe defer", "ok", ok)
 		elapsed := time.Since(start)
 		ms = append(ms, newMetric(p, "elapsed.seconds", elapsed.Seconds()))
 		if ok {
@@ -119,28 +125,42 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		} else {
 			ms = append(ms, newMetric(p, "check.ok", 0))
 		}
-		log.Println("[debug]", ms.String())
+		slog.Debug("tcp probe completed", "metrics", ms.String())
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
 	addr := net.JoinHostPort(p.Host, p.Port)
 
-	log.Println("[debug] dialing", addr)
-	conn, err := dialTCP(ctx, addr, p.TLS, p.NoCheckCertificate, p.Timeout)
+	slog.Debug("dialing", "addr", addr)
+	conn, err := dialTCP(timeoutCtx, addr, p.TLS, p.NoCheckCertificate, p.Timeout)
 	if err != nil {
-		return ms, errors.Wrap(err, "connect failed")
+		return ms, fmt.Errorf("connect failed: %w", err)
 	}
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(p.Timeout))
 
-	log.Println("[debug] connected", addr)
+	slog.Debug("connected", "addr", addr)
+
+	// Add certificate expiration metric for TLS connections
+	if p.TLS {
+		if tlsConn, ok := conn.(*tls.Conn); ok {
+			state := tlsConn.ConnectionState()
+			if len(state.PeerCertificates) > 0 {
+				cert := state.PeerCertificates[0]
+				expiresInDays := time.Until(cert.NotAfter).Hours() / 24
+				ms = append(ms, newMetric(p, "certificate.expires_in_days", expiresInDays))
+				slog.Debug("certificate expiration", "expires_at", cert.NotAfter, "expires_in_days", expiresInDays)
+			}
+		}
+	}
+
 	if p.Send != "" {
-		log.Println("[debug] send", p.Send)
+		slog.Debug("send", "data", p.Send)
 		_, err := io.WriteString(conn, p.Send)
 		if err != nil {
-			return ms, errors.Wrap(err, "send failed")
+			return ms, fmt.Errorf("send failed: %w", err)
 		}
 	}
 	if p.ExpectPattern != nil {
@@ -148,16 +168,16 @@ func (p *TCPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		r := bufio.NewReader(conn)
 		n, err := r.Read(buf)
 		if err != nil {
-			return ms, errors.Wrap(err, "read failed")
+			return ms, fmt.Errorf("read failed: %w", err)
 		}
-		log.Println("[debug] read", string(buf[:n]))
+		slog.Debug("read", "data", string(buf[:n]))
 
 		if !p.ExpectPattern.Match(buf[:n]) {
-			return ms, errors.Wrap(err, "unexpected response")
+			return ms, fmt.Errorf("unexpected response")
 		}
 	}
 	if p.Quit != "" {
-		log.Println("[debug]", p.Quit)
+		slog.Debug("quit", "data", p.Quit)
 		io.WriteString(conn, p.Quit)
 	}
 

@@ -1,15 +1,16 @@
 package maprobe
 
 import (
+	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
 	mackerel "github.com/mackerelio/mackerel-client-go"
 )
 
@@ -18,15 +19,19 @@ type Client struct {
 	backupClient *backupClient
 }
 
-func newClient(apiKey string, backupStream string) *Client {
+func newClient(ctx context.Context, apiKey string, backupStream string) *Client {
 	c := &Client{
 		mackerel: mackerel.NewClient(apiKey),
 	}
 	if backupStream != "" {
-		log.Println("[info] setting backup firehose stream:", backupStream)
-		sess := session.Must(session.NewSession())
+		slog.Info("setting backup firehose stream", "stream", backupStream)
+		cfg, err := config.LoadDefaultConfig(ctx)
+		if err != nil {
+			slog.Error("failed to load AWS config", "error", err)
+			return c
+		}
 		c.backupClient = &backupClient{
-			svc:        firehose.New(sess),
+			svc:        firehose.NewFromConfig(cfg),
 			streamName: backupStream,
 		}
 	}
@@ -45,7 +50,7 @@ func (client *Client) FindHosts(p *mackerel.FindHostsParam) ([]*mackerel.Host, e
 	hosts, err := client.mackerel.FindHosts(p)
 	if err != nil {
 		if cachedHosts, found := findHostsCache.Load(key); found {
-			log.Println("[warn] probes find host failed, using previous cache:", err)
+			slog.Warn("probes find host failed, using previous cache", "error", err)
 			hosts = cachedHosts.([]*mackerel.Host)
 		} else {
 			return nil, err
@@ -56,7 +61,7 @@ func (client *Client) FindHosts(p *mackerel.FindHostsParam) ([]*mackerel.Host, e
 	return hosts, nil
 }
 
-func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.MetricValue) error {
+func (c *Client) PostServiceMetricValues(ctx context.Context, serviceName string, mvs []*mackerel.MetricValue) error {
 	err := c.mackerel.PostServiceMetricValues(serviceName, mvs)
 	if err == nil {
 		return nil
@@ -64,11 +69,11 @@ func (c *Client) PostServiceMetricValues(serviceName string, mvs []*mackerel.Met
 	if c.backupClient == nil {
 		return err
 	}
-	log.Println("[warn] failed to post metrics to mackerel:", err)
-	return c.backupClient.PostServiceMetricValues(serviceName, mvs)
+	slog.Warn("failed to post metrics to mackerel", "error", err)
+	return c.backupClient.PostServiceMetricValues(ctx, serviceName, mvs)
 }
 
-func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
+func (c *Client) PostHostMetricValues(ctx context.Context, mvs []*mackerel.HostMetricValue) error {
 	err := c.mackerel.PostHostMetricValues(mvs)
 	if err == nil {
 		return nil
@@ -76,8 +81,8 @@ func (c *Client) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
 	if c.backupClient == nil {
 		return err
 	}
-	log.Println("[warn] failed to post metrics to mackerel:", err)
-	return c.backupClient.PostHostMetricValues(mvs)
+	slog.Warn("failed to post metrics to mackerel", "error", err)
+	return c.backupClient.PostHostMetricValues(ctx, mvs)
 }
 
 func (c *Client) fetchLatestMetricValues(hostIDs []string, metricNames []string) (mackerel.LatestMetricValues, error) {
@@ -97,16 +102,20 @@ func (c *Client) fetchLatestMetricValues(hostIDs []string, metricNames []string)
 					<-clientSem
 					wg.Done()
 				}()
-				log.Printf(
-					"[trace] fetching host metric values: %s %s from %s to %s",
-					hostID,
-					metricName,
-					from.Format(time.RFC3339),
-					to.Format(time.RFC3339),
+				slog.Debug("fetching host metric values",
+					"hostID", hostID,
+					"metricName", metricName,
+					"from", from.Format(time.RFC3339),
+					"to", to.Format(time.RFC3339),
 				)
 				mvs, err := c.mackerel.FetchHostMetricValues(hostID, metricName, from.Unix(), to.Unix())
 				if err != nil {
-					log.Printf("[warn] failed to fetch host metric values: %s %s %s from %s to %s", err, hostID, metricName, from, to)
+					slog.Warn("failed to fetch host metric values",
+						"error", err,
+						"hostID", hostID,
+						"metricName", metricName,
+						"from", from,
+						"to", to)
 					return
 				}
 				if len(mvs) == 0 {

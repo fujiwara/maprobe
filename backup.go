@@ -1,15 +1,17 @@
 package maprobe
 
 import (
+	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 
-	"github.com/aws/aws-sdk-go/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose"
+	"github.com/aws/aws-sdk-go-v2/service/firehose/types"
 	"github.com/mackerelio/mackerel-client-go"
 )
 
 type backupClient struct {
-	svc        *firehose.Firehose
+	svc        *firehose.Client
 	streamName string
 }
 
@@ -19,8 +21,8 @@ type backupPayload struct {
 	HostMetricValues []*mackerel.HostMetricValue `json:"host_metric_values,omitempty"`
 }
 
-func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.MetricValue) error {
-	log.Printf("[info] post %d service metrics to backup stream: %s", len(mvs), c.streamName)
+func (c *backupClient) PostServiceMetricValues(ctx context.Context, service string, mvs []*mackerel.MetricValue) error {
+	slog.Info("post service metrics to backup stream", "count", len(mvs), "stream", c.streamName)
 	data, err := json.Marshal(backupPayload{
 		Service:      service,
 		MetricValues: mvs,
@@ -28,24 +30,24 @@ func (c *backupClient) PostServiceMetricValues(service string, mvs []*mackerel.M
 	if err != nil {
 		return err
 	}
-	_, err = c.svc.PutRecord(&firehose.PutRecordInput{
+	_, err = c.svc.PutRecord(ctx, &firehose.PutRecordInput{
 		DeliveryStreamName: &c.streamName,
-		Record:             &firehose.Record{Data: data},
+		Record:             &types.Record{Data: data},
 	})
 	return err
 }
 
-func (c *backupClient) PostHostMetricValues(mvs []*mackerel.HostMetricValue) error {
-	log.Printf("[info] post %d host metrics to backup stream: %s", len(mvs), c.streamName)
+func (c *backupClient) PostHostMetricValues(ctx context.Context, mvs []*mackerel.HostMetricValue) error {
+	slog.Info("post host metrics to backup stream", "count", len(mvs), "stream", c.streamName)
 	data, err := json.Marshal(backupPayload{
 		HostMetricValues: mvs,
 	})
 	if err != nil {
 		return err
 	}
-	_, err = c.svc.PutRecord(&firehose.PutRecordInput{
+	_, err = c.svc.PutRecord(ctx, &firehose.PutRecordInput{
 		DeliveryStreamName: &c.streamName,
-		Record:             &firehose.Record{Data: data},
+		Record:             &types.Record{Data: data},
 	})
 	return err
 }

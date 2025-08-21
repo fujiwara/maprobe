@@ -4,15 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"io/ioutil"
-	"log"
+	"io"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
+	"fmt"
+
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -41,34 +42,34 @@ func (pc *HTTPProbeConfig) GenerateProbe(host *mackerel.Host) (Probe, error) {
 	var err error
 	p.URL, err = expandPlaceHolder(pc.URL, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid URL")
+		return nil, fmt.Errorf("invalid URL: %w", err)
 	}
 	if !strings.HasPrefix(p.URL, "http://") && !strings.HasPrefix(p.URL, "https://") {
-		return nil, errors.New("invalid URL " + p.URL)
+		return nil, fmt.Errorf("invalid URL %s", p.URL)
 	}
 
 	p.Headers = make(map[string]string, len(pc.Headers))
 	for name, value := range pc.Headers {
 		p.Headers[name], err = expandPlaceHolder(value, host, nil)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid header "+name)
+			return nil, fmt.Errorf("invalid header %s: %w", name, err)
 		}
 	}
 
 	p.Body, err = expandPlaceHolder(pc.Body, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid body")
+		return nil, fmt.Errorf("invalid body: %w", err)
 	}
 
 	var pattern string
 	pattern, err = expandPlaceHolder(pc.ExpectPattern, host, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "invalid expect_pattern")
+		return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 	}
 	if pattern != "" {
 		p.ExpectPattern, err = regexp.Compile(pattern)
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid expect_pattern")
+			return nil, fmt.Errorf("invalid expect_pattern: %w", err)
 		}
 	}
 
@@ -112,7 +113,7 @@ func (p *HTTPProbe) String() string {
 	return string(b)
 }
 
-func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
+func (p *HTTPProbe) Run(ctx context.Context) (ms Metrics, err error) {
 	var ok bool
 	start := time.Now()
 	defer func() {
@@ -123,15 +124,15 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 		} else {
 			ms = append(ms, newMetric(p, "check.ok", 0))
 		}
-		log.Println("[trace]", ms.String())
+		slog.Debug("http probe completed", "metrics", ms.String())
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), p.Timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, p.Timeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, p.Method, p.URL, strings.NewReader(p.Body))
+	req, err := http.NewRequestWithContext(timeoutCtx, p.Method, p.URL, strings.NewReader(p.Body))
 	if err != nil {
-		log.Println("[warn] invalid HTTP request", err)
+		slog.Warn("invalid HTTP request", "error", err)
 		return
 	}
 	for name, value := range p.Headers {
@@ -144,29 +145,37 @@ func (p *HTTPProbe) Run(_ context.Context) (ms Metrics, err error) {
 	}
 	client := &http.Client{Transport: tr}
 
-	log.Printf("[debug] http request %s %s", req.Method, req.URL)
+	slog.Debug("http request", "method", req.Method, "url", req.URL)
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("[warn] HTTP request failed", err)
+		slog.Warn("HTTP request failed", "error", err)
 		return
 	}
 	defer resp.Body.Close()
+
+	// Add certificate expiration metric for HTTPS
+	if resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
+		cert := resp.TLS.PeerCertificates[0]
+		expiresInDays := time.Until(cert.NotAfter).Hours() / 24
+		ms = append(ms, newMetric(p, "certificate.expires_in_days", expiresInDays))
+		slog.Debug("certificate expiration", "expires_at", cert.NotAfter, "expires_in_days", expiresInDays)
+	}
 
 	ms = append(ms, newMetric(p, "status.code", float64(resp.StatusCode)))
 	if resp.StatusCode >= 400 {
 		ok = false
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("[warn] HTTP read body failed", err)
-		return ms, errors.Wrap(err, "read body failed")
+		slog.Warn("HTTP read body failed", "error", err)
+		return ms, fmt.Errorf("read body failed: %w", err)
 	}
 	ms = append(ms, newMetric(p, "content.length", float64(len(body))))
 
 	if p.ExpectPattern != nil {
 		if !p.ExpectPattern.Match(body) {
-			return ms, errors.Wrap(err, "unexpected response")
+			return ms, fmt.Errorf("unexpected response")
 		}
 	}
 

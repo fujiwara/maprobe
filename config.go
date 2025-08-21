@@ -1,23 +1,22 @@
 package maprobe
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/goccy/go-yaml"
 	mackerel "github.com/mackerelio/mackerel-client-go"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 type Config struct {
@@ -40,9 +39,11 @@ type MackerelConfig struct {
 }
 
 type OtelConfig struct {
-	Enabled  bool   `yaml:"enabled"`
-	Endpoint string `yaml:"endpoint"`
-	Insecure bool   `yaml:"insecure"`
+	Enabled            bool              `yaml:"enabled"`
+	Endpoint           string            `yaml:"endpoint"`
+	Insecure           bool              `yaml:"insecure"`
+	ResourceAttributes map[string]string `yaml:"resource_attributes"`
+	StatsAttributes    map[string]string `yaml:"stats_attributes"`
 }
 
 type DestinationConfig struct {
@@ -88,6 +89,7 @@ type ProbeDefinition struct {
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
 	HTTP    *HTTPProbeConfig    `yaml:"http"`
 	Command *CommandProbeConfig `yaml:"command"`
+	GRPC    *GRPCProbeConfig    `yaml:"grpc"`
 
 	Attributes map[string]string `yaml:"attributes"`
 }
@@ -95,7 +97,7 @@ type ProbeDefinition struct {
 func (pd *ProbeDefinition) Validate() error {
 	if pd.IsServiceMetric {
 		if pd.Role.Value != "" || len(pd.Roles) > 0 || len(pd.Statuses) > 0 {
-			return errors.Errorf("probe for service metric cannot have role or roles or statuses")
+			return fmt.Errorf("probe for service metric cannot have role or roles or statuses")
 		}
 	}
 	return nil
@@ -107,7 +109,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if pingConfig := pd.Ping; pingConfig != nil {
 		p, err := pingConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate ping probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate ping probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -116,7 +118,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if tcpConfig := pd.TCP; tcpConfig != nil {
 		p, err := tcpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate tcp probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate tcp probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -125,7 +127,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if httpConfig := pd.HTTP; httpConfig != nil {
 		p, err := httpConfig.GenerateProbe(host)
 		if err != nil {
-			log.Printf("[error] cannot generate http probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate http probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -134,7 +136,16 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	if commandConfig := pd.Command; commandConfig != nil {
 		p, err := commandConfig.GenerateProbe(host, client)
 		if err != nil {
-			log.Printf("[error] cannot generate command probe. ID:%s Name:%s %s", host.ID, host.Name, err)
+			slog.Error("cannot generate command probe", "hostID", host.ID, "hostName", host.Name, "error", err)
+		} else {
+			probes = append(probes, p)
+		}
+	}
+
+	if grpcConfig := pd.GRPC; grpcConfig != nil {
+		p, err := grpcConfig.GenerateProbe(host)
+		if err != nil {
+			slog.Error("cannot generate grpc probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}
@@ -143,7 +154,7 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 	return probes
 }
 
-func LoadConfig(location string) (*Config, string, error) {
+func LoadConfig(ctx context.Context, location string) (*Config, string, error) {
 	c := &Config{
 		location:              location,
 		PostProbedMetrics:     true,
@@ -158,15 +169,15 @@ func LoadConfig(location string) (*Config, string, error) {
 			},
 		},
 	}
-	b, err := c.fetch()
+	b, err := c.fetch(ctx)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "load config failed")
+		return nil, "", fmt.Errorf("load config failed: %w", err)
 	}
 	if err := yaml.Unmarshal(b, c); err != nil {
-		return nil, "", errors.Wrap(err, "yaml parse failed")
+		return nil, "", fmt.Errorf("yaml parse failed: %w", err)
 	}
 	if err := c.initialize(); err != nil {
-		return nil, "", errors.Wrap(err, "config initialize failed")
+		return nil, "", fmt.Errorf("config initialize failed: %w", err)
 	}
 	return c, fmt.Sprintf("%x", sha256.Sum256(b)), c.validate()
 }
@@ -196,7 +207,7 @@ func (c *Config) initialize() error {
 
 func (c *Config) validate() error {
 	if o := c.ProbeOnly; o != nil {
-		log.Println("[warn] configuration probe_only is not deprecated. use post_probed_metrics")
+		slog.Warn("configuration probe_only is not deprecated. use post_probed_metrics")
 		c.PostProbedMetrics = !*o
 	}
 
@@ -217,10 +228,7 @@ func (c *Config) validate() error {
 				case "count":
 					oc.calc = count
 				default:
-					log.Printf(
-						"[warn] func %s is not available for outputs %s",
-						oc.Func, mc.Name,
-					)
+					slog.Warn("func is not available for outputs", "func", oc.Func, "output", mc.Name)
 				}
 			}
 		}
@@ -229,7 +237,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-func (c *Config) fetch() ([]byte, error) {
+func (c *Config) fetch(ctx context.Context) ([]byte, error) {
 	u, err := url.Parse(c.location)
 	if err != nil {
 		// file path
@@ -237,9 +245,9 @@ func (c *Config) fetch() ([]byte, error) {
 	}
 	switch u.Scheme {
 	case "http", "https":
-		return fetchHTTP(u)
+		return fetchHTTP(ctx, u)
 	case "s3":
-		return fetchS3(u)
+		return fetchS3(ctx, u)
 	default:
 		// file
 		return os.ReadFile(u.Path)
@@ -251,9 +259,13 @@ func (c *Config) String() string {
 	return string(b)
 }
 
-func fetchHTTP(u *url.URL) ([]byte, error) {
-	log.Println("[debug] fetching HTTP", u)
-	resp, err := http.Get(u.String())
+func fetchHTTP(ctx context.Context, u *url.URL) ([]byte, error) {
+	slog.Debug("fetching HTTP", "url", u)
+	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -261,15 +273,19 @@ func fetchHTTP(u *url.URL) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func fetchS3(u *url.URL) ([]byte, error) {
-	log.Println("[debug] fetching S3", u)
-	sess := session.Must(session.NewSession())
-	downloader := s3manager.NewDownloader(sess)
+func fetchS3(ctx context.Context, u *url.URL) ([]byte, error) {
+	slog.Debug("fetching S3", "url", u)
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config, %s", err)
+	}
+	client := s3.NewFromConfig(cfg)
+	downloader := manager.NewDownloader(client)
 
-	buf := &aws.WriteAtBuffer{}
-	_, err := downloader.Download(buf, &s3.GetObjectInput{
-		Bucket: aws.String(u.Host),
-		Key:    aws.String(u.Path),
+	buf := &manager.WriteAtBuffer{}
+	_, err = downloader.Download(ctx, buf, &s3.GetObjectInput{
+		Bucket: &u.Host,
+		Key:    &u.Path,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch from S3, %s", err)

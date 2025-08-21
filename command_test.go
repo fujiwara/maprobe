@@ -57,7 +57,7 @@ var commandProbesExpect = [][]maprobe.Metric{
 }
 
 func TestCommand(t *testing.T) {
-	c, _, err := maprobe.LoadConfig("test/command.yaml")
+	c, _, err := maprobe.LoadConfig(context.Background(), "test/command.yaml")
 	if err != nil {
 		t.Error(err)
 		return
@@ -81,7 +81,7 @@ func TestCommand(t *testing.T) {
 }
 
 func TestCommandFail(t *testing.T) {
-	c, _, err := maprobe.LoadConfig("test/command_fail.yaml")
+	c, _, err := maprobe.LoadConfig(context.Background(), "test/command_fail.yaml")
 	if err == nil {
 		t.Errorf("must be failed but got %#v", c)
 	}

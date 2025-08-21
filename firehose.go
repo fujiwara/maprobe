@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -72,7 +72,7 @@ func handlePingRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFirehoseRequest(w http.ResponseWriter, r *http.Request) {
-	log.Println("[info][FirehoseEndpoint] accept HTTP request for Firhose Endpoint from", r.RemoteAddr)
+	slog.Info("[FirehoseEndpoint] accept HTTP request for Firhose Endpoint", "remoteAddr", r.RemoteAddr)
 	w.Header().Add("content-type", "application/json")
 	respBody := firehoseResponseBody{
 		RequestID: r.Header.Get(requestIDHeaderName),
@@ -80,7 +80,7 @@ func handleFirehoseRequest(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		respBody.Timestamp = time.Now().UnixNano() / int64(time.Millisecond)
 		if e := respBody.ErrorMessage; e != "" {
-			log.Printf("[error][FirehoseEndpoint] %s", e)
+			slog.Error("[FirehoseEndpoint]", "error", e)
 		}
 		json.NewEncoder(w).Encode(respBody)
 	}()
@@ -97,24 +97,24 @@ func handleFirehoseRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := newClient(MackerelAPIKey, "") // with no backup
+	client := newClient(r.Context(), MackerelAPIKey, "") // with no backup
 	for _, record := range reqBody.Records {
 		var payload backupPayload
-		log.Println("[debug][FirehoseEndpoint] record:", string(record.Data))
+		slog.Debug("[FirehoseEndpoint] record", "data", string(record.Data))
 		if err := json.Unmarshal(record.Data, &payload); err != nil {
-			log.Println("[warn][FirehoseEndpoint] failed to parse payload", err)
+			slog.Warn("[FirehoseEndpoint] failed to parse payload", "error", err)
 			continue
 		}
 		if service := payload.Service; service != "" {
-			log.Printf("[info][FirehoseEndpoint] post %d service metrics to %s", len(payload.MetricValues), service)
-			if err := client.PostServiceMetricValues(service, payload.MetricValues); err != nil {
+			slog.Info("[FirehoseEndpoint] post service metrics", "count", len(payload.MetricValues), "service", service)
+			if err := client.PostServiceMetricValues(r.Context(), service, payload.MetricValues); err != nil {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				respBody.ErrorMessage = err.Error()
 				return
 			}
 		} else {
-			log.Printf("[info][FirehoseEndpoint] post %d host metrics", len(payload.HostMetricValues))
-			if err := client.PostHostMetricValues(payload.HostMetricValues); err != nil {
+			slog.Info("[FirehoseEndpoint] post host metrics", "count", len(payload.HostMetricValues))
+			if err := client.PostHostMetricValues(r.Context(), payload.HostMetricValues); err != nil {
 				w.WriteHeader(http.StatusServiceUnavailable)
 				respBody.ErrorMessage = err.Error()
 				return
