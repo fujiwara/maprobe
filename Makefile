@@ -38,9 +38,9 @@ docker-push/%:
 docker-push-all: docker-build/bookworm-slim docker-push/bullseye-slim docker-push/mackerel-plugins docker-push/plain
 
 docker-build-push/%:
-	docker buildx build --build-arg version=${TAG} \
+	docker buildx build --build-arg version=${LATEST_TAG} \
 		--platform=linux/amd64,linux/arm64 \
-		-t fujiwara/maprobe:${TAG}-$* \
+		-t fujiwara/maprobe:${LATEST_TAG}-$* \
 		-f docker/$*/Dockerfile \
 		--push \
 		.
