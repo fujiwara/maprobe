@@ -8,7 +8,7 @@ cmd/maprobe/maprobe: *.go cmd/maprobe/main.go
 	go build -ldflags "-w -s -X github.com/fujiwara/maprobe.Version=$(LATEST_TAG)"
 
 install:
-	go install -ldflags "-w -s -X github.com/fujiwara/maprobe.Version=$(LATEST_TAG)" ./cmd/maprobe
+	go build -ldflags "-w -s -X github.com/fujiwara/maprobe.Version=$(LATEST_TAG)" -o $(GOPATH)/bin/maprobe ./cmd/maprobe
 
 setup:
 	cp test/config.yaml test/config.mod.yaml
