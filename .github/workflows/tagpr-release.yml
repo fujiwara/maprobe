@@ -60,6 +60,5 @@ jobs:
 
       - name: docker
         run: |
-          export TAG=$(echo $GITHUB_REF | cut -d/ -f3)
           make docker-build-push-all
         if: ${{ steps.tagpr.outputs.tag != '' || github.event_name == 'workflow_dispatch' }}
