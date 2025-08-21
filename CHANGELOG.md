@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.10.0](https://github.com/fujiwara/maprobe/compare/v0.9.2...v0.10.0) - 2025-08-21
+- Update Go toolchain to go1.24.6 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/128
+- Add support for additional attributes in command probe metrics by @fujiwara in https://github.com/fujiwara/maprobe/pull/130
+- Bump the aws-sdk-go group with 6 updates by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/106
+- Bump actions/checkout from 4 to 5 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/127
+- Bump github.com/mackerelio/mackerel-client-go from 0.37.0 to 0.37.2 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/111
+- Bump github.com/goccy/go-yaml from 1.17.1 to 1.18.0 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/107
+- Bump github.com/shogo82148/go-retry from 1.2.0 to 1.3.1 by @dependabot[bot] in https://github.com/fujiwara/maprobe/pull/73
+
 ## [v0.9.2](https://github.com/fujiwara/maprobe/compare/v0.9.1...v0.9.2) - 2025-08-04
 - retrive TLS certificate expiration on grpc probe. by @fujiwara in https://github.com/fujiwara/maprobe/pull/125
 
