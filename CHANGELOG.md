@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.10.1](https://github.com/fujiwara/maprobe/compare/v0.10.0...v0.10.1) - 2025-08-21
+- fix metric attribute initialize. by @fujiwara in https://github.com/fujiwara/maprobe/pull/131
+- fix make install by @fujiwara in https://github.com/fujiwara/maprobe/pull/133
+
 ## [v0.10.0](https://github.com/fujiwara/maprobe/compare/v0.9.2...v0.10.0) - 2025-08-21
 - Update Go toolchain to go1.24.6 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/128
 - Add support for additional attributes in command probe metrics by @fujiwara in https://github.com/fujiwara/maprobe/pull/130
