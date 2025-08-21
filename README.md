@@ -366,38 +366,24 @@ If the command does not return a valid graph definitions output, that is ignored
 
 See also [ホストのカスタムメトリックを投稿する - Mackerel ヘルプ](https://mackerel.io/ja/docs/entry/advanced/custom-metrics#graph-schema).
 
-#### Example of automated cleanup for terminated EC2 instances.
+#### Additional attributes for metrics
 
-Command probe can run any scripts against for Mackerel hosts.
+The command probe supports additional attributes for metrics.
 
-For example,
+If the command returns extra columns in `key=value` format at the end of each line, these will be treated as attributes for the metric.
 
-```yaml
-service: production
-role: server
-statues:
-  - working
-  - standby
-  - poweroff
-command:
-  command: 'cleanup.sh {{.Host.ID}} {{index .Host.Meta.Cloud.MetaData "instance-id"}}'
+For example, if the command outputs like below:
+
+```
+foo.bar	42	1755681797	key1=value1	key2=value2
 ```
 
-cleanup.sh checks an instance status, retire a Mackerel host when the instance is not exists.
+The parsed metric will have the following attributes:
 
-```bash
-#!/bin/bash
-set -u
-host_id="$1"
-instance_id="$2"
-exec 1> /dev/null # dispose stdout
-result=$(aws ec2 describe-instance-status --instance-id "${instance_id}" 2>&1)
-if [[ $? == 0 ]]; then
-  exit
-elif [[ $result =~ "InvalidInstanceID.NotFound" ]]; then
-   mkr retire --force "${host_id}"
-fi
-```
+- key1: value1
+- key2: value2
+
+These attributes will be sent to the OpenTelemetry metrics endpoint only.
 
 ### Example Configuration for aggregates
 
