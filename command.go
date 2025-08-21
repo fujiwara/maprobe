@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -278,31 +277,4 @@ func (p *CommandProbe) GetGraphDefs() (*GraphsOutput, error) {
 		return nil, fmt.Errorf("could not decode graph defs output: %w", err)
 	}
 	return &out, nil
-}
-
-func parseMetricLine(b string) (Metric, error) {
-	cols := strings.SplitN(b, "\t", 3)
-	if len(cols) < 3 {
-		return Metric{}, fmt.Errorf("invalid metric format. insufficient columns")
-	}
-	name, value, timestamp := cols[0], cols[1], cols[2]
-	if name == "" {
-		return Metric{}, fmt.Errorf("invalid metric format. name is empty")
-	}
-	m := Metric{
-		Name: name,
-	}
-	if v, err := strconv.ParseFloat(value, 64); err != nil {
-		return m, fmt.Errorf("invalid metric value: %s", value)
-	} else {
-		m.Value = v
-	}
-
-	if ts, err := strconv.ParseInt(timestamp, 10, 64); err != nil {
-		return m, fmt.Errorf("invalid metric time: %s", timestamp)
-	} else {
-		m.Timestamp = time.Unix(ts, 0)
-	}
-
-	return m, nil
 }
