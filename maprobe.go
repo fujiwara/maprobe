@@ -28,7 +28,6 @@ import (
 )
 
 var (
-	Version                = "HEAD"
 	MaxConcurrency         = 100
 	MaxClientConcurrency   = 5
 	PostMetricBufferLength = 100
@@ -544,6 +543,15 @@ func Main(ctx context.Context, args []string) error {
 			Timeout:            cli.HTTP.Timeout,
 			ExpectPattern:      cli.HTTP.ExpectPattern,
 			NoCheckCertificate: cli.HTTP.NoCheckCertificate,
+		})
+	case "grpc":
+		err = runProbe(ctx, cli.GRPC.HostID, &GRPCProbeConfig{
+			Address:            cli.GRPC.Address,
+			GRPCService:        cli.GRPC.GRPCService,
+			Timeout:            cli.GRPC.Timeout,
+			TLS:                cli.GRPC.TLS,
+			NoCheckCertificate: cli.GRPC.NoCheckCertificate,
+			Metadata:           cli.GRPC.Metadata,
 		})
 	case "firehose-endpoint":
 		wg.Add(1)

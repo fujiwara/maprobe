@@ -39,7 +39,7 @@ func testHTTPSServer() string {
 
 	// Generate a test certificate that expires in 30 days
 	cert, key := generateTestCertificate(30 * 24 * time.Hour)
-	
+
 	ts := httptest.NewUnstartedServer(handler)
 	ts.TLS = &tls.Config{
 		Certificates: []tls.Certificate{{
@@ -64,12 +64,12 @@ func generateTestCertificate(validFor time.Duration) (*x509.Certificate, *rsa.Pr
 		Subject: pkix.Name{
 			Organization: []string{"Test"},
 		},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(validFor),
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1)},
-		DNSNames:     []string{"localhost"},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(validFor),
+		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses: []net.IP{net.IPv4(127, 0, 0, 1)},
+		DNSNames:    []string{"localhost"},
 	}
 
 	// Create certificate
@@ -151,7 +151,7 @@ func TestHTTPS(t *testing.T) {
 	if len(ms) != 5 {
 		t.Errorf("unexpected metrics num: got %d, want 5", len(ms))
 	}
-	
+
 	var foundCertMetric bool
 	for _, m := range ms {
 		switch m.Name {
@@ -179,7 +179,7 @@ func TestHTTPS(t *testing.T) {
 			}
 		}
 	}
-	
+
 	if !foundCertMetric {
 		t.Error("certificate.expires_in_days metric not found")
 	}

@@ -64,6 +64,9 @@ Commands:
   http [<flags>] <url>
     Run HTTP probe
 
+  grpc [<flags>] <address>
+    Run gRPC probe
+
   firehose-endpoint [<flags>]
     Run Firehose HTTP endpoint
 ```
@@ -105,7 +108,7 @@ probes:
     role: webserver
     http:
       url: 'http://{{ .Host.CustomIdentifier }}/api/healthcheck'
-      post: POST
+      method: POST
       headers:
         Content-Type: application/json
       body: '{"hello":"world"}'
@@ -127,6 +130,15 @@ probes:
     attributes: # supoort OpenTelemetry attributes
       - service.namespaece: redis
       - host.name: "{{ .Host.Name }}"
+
+  - service: production
+    role: api
+    grpc:
+      address: '{{ .Host.IPAddress.eth0 }}:50051'
+      grpc_service: "api.v1.UserService"
+      metadata:
+        authorization: "Bearer {{ env "API_TOKEN" }}"
+      tls: true
 
   - service: production
     service_metric: true # post metrics as service metrics
@@ -297,6 +309,30 @@ HTTP probe generates the following metrics.
 
 When a status code is grather than 400, http.check.ok set to 0.
 
+### gRPC
+
+gRPC probe checks the health of a gRPC service using the standard gRPC Health Checking Protocol.
+
+```yaml
+grpc:
+  address: "localhost:50051"     # gRPC server address (required)
+  grpc_service: ""               # Service name for health check (empty for overall server health)
+  timeout: 10s                   # Timeout (default 10s)
+  tls: false                     # Use TLS for connection
+  no_check_certificate: false    # Do not check certificate
+  metadata:                      # gRPC metadata (for authentication, etc.)
+    authorization: "Bearer token"
+  metric_key_prefix:             # default grpc
+```
+
+gRPC probe generates the following metrics.
+
+- grpc.check.ok (0 or 1)
+- grpc.elapsed.seconds (seconds)
+- grpc.status.code (gRPC status code, 0 = OK)
+
+The probe uses the standard [gRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). When `grpc_service` is empty, it checks the overall server health. When specified, it checks the health of that specific service.
+
 ### Command
 
 Command probe executes command which outputs like Mackerel metric plugin.
@@ -330,38 +366,24 @@ If the command does not return a valid graph definitions output, that is ignored
 
 See also [ホストのカスタムメトリックを投稿する - Mackerel ヘルプ](https://mackerel.io/ja/docs/entry/advanced/custom-metrics#graph-schema).
 
-#### Example of automated cleanup for terminated EC2 instances.
+#### Additional attributes for metrics
 
-Command probe can run any scripts against for Mackerel hosts.
+The command probe supports additional attributes for metrics.
 
-For example,
+If the command returns extra columns in `key=value` format at the end of each line, these will be treated as attributes for the metric.
 
-```yaml
-service: production
-role: server
-statues:
-  - working
-  - standby
-  - poweroff
-command:
-  command: 'cleanup.sh {{.Host.ID}} {{index .Host.Meta.Cloud.MetaData "instance-id"}}'
+For example, if the command outputs like below:
+
+```
+foo.bar	42	1755681797	key1=value1	key2=value2
 ```
 
-cleanup.sh checks an instance status, retire a Mackerel host when the instance is not exists.
+The parsed metric will have the following attributes:
 
-```bash
-#!/bin/bash
-set -u
-host_id="$1"
-instance_id="$2"
-exec 1> /dev/null # dispose stdout
-result=$(aws ec2 describe-instance-status --instance-id "${instance_id}" 2>&1)
-if [[ $? == 0 ]]; then
-  exit
-elif [[ $result =~ "InvalidInstanceID.NotFound" ]]; then
-   mkr retire --force "${host_id}"
-fi
-```
+- key1: value1
+- key2: value2
+
+These attributes will be sent to the OpenTelemetry metrics endpoint only.
 
 ### Example Configuration for aggregates
 

@@ -54,21 +54,21 @@ func testTCPServer() net.Addr {
 func testTLSServer() net.Addr {
 	// Generate a test certificate that expires in 30 days
 	cert, key := generateTestCertificate(30 * 24 * time.Hour)
-	
+
 	tlsCert := tls.Certificate{
 		Certificate: [][]byte{cert.Raw},
 		PrivateKey:  key,
 	}
-	
+
 	config := &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
 	}
-	
+
 	l, err := tls.Listen("tcp", "127.0.0.1:0", config)
 	if err != nil {
 		panic(err)
 	}
-	
+
 	go func() {
 		defer l.Close()
 		for {
@@ -88,7 +88,6 @@ func testTLSServer() net.Addr {
 	}()
 	return l.Addr()
 }
-
 
 func TestTCP(t *testing.T) {
 	host, port, _ := net.SplitHostPort(TCPServerAddress.String())
@@ -183,12 +182,12 @@ func TestTCPTLS(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	
+
 	// Should have 3 metrics: check.ok, elapsed.seconds, certificate.expires_in_days
 	if len(ms) != 3 {
 		t.Errorf("unexpected metrics num: got %d, want 3", len(ms))
 	}
-	
+
 	var foundCertMetric bool
 	for _, m := range ms {
 		switch m.Name {
@@ -208,7 +207,7 @@ func TestTCPTLS(t *testing.T) {
 			}
 		}
 	}
-	
+
 	if !foundCertMetric {
 		t.Error("certificate.expires_in_days metric not found")
 	}

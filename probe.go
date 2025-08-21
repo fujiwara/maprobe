@@ -146,7 +146,7 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client, st
 			for _, probe := range pd.GenerateProbes(host, client.mackerel) {
 				slog.Debug("probing host", "hostID", host.ID, "hostName", host.Name, "probe", probe)
 				metrics, err := probe.Run(ctx)
-				
+
 				// Update probe execution stats
 				if err != nil {
 					slog.Warn("probe failed", "error", err, "hostID", host.ID, "hostName", host.Name, "probe", probe)
@@ -159,7 +159,7 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client, st
 					}
 					m.Attribute.SetExtra(pd.Attributes, host)
 					ms = append(ms, m.HostMetric(host.ID))
-					
+
 					// Update metrics collected counter
 					stats.RecordMetricCollected(ctx)
 				}
@@ -185,7 +185,7 @@ func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client,
 	for _, probe := range pd.GenerateProbes(host, client.mackerel) {
 		slog.Debug("probing service", "service", serviceName, "probe", probe)
 		metrics, err := probe.Run(ctx)
-		
+
 		// Update probe execution stats
 		if err != nil {
 			slog.Warn("probe failed", "error", err, "service", serviceName, "probe", probe)
@@ -197,7 +197,7 @@ func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client,
 			}
 			m.Attribute.SetExtra(pd.Attributes, host)
 			ms = append(ms, m.ServiceMetric(serviceName))
-			
+
 			// Update metrics collected counter
 			stats.RecordMetricCollected(ctx)
 		}

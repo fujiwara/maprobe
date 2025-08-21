@@ -89,6 +89,7 @@ type ProbeDefinition struct {
 	TCP     *TCPProbeConfig     `yaml:"tcp"`
 	HTTP    *HTTPProbeConfig    `yaml:"http"`
 	Command *CommandProbeConfig `yaml:"command"`
+	GRPC    *GRPCProbeConfig    `yaml:"grpc"`
 
 	Attributes map[string]string `yaml:"attributes"`
 }
@@ -136,6 +137,15 @@ func (pd *ProbeDefinition) GenerateProbes(host *mackerel.Host, client *mackerel.
 		p, err := commandConfig.GenerateProbe(host, client)
 		if err != nil {
 			slog.Error("cannot generate command probe", "hostID", host.ID, "hostName", host.Name, "error", err)
+		} else {
+			probes = append(probes, p)
+		}
+	}
+
+	if grpcConfig := pd.GRPC; grpcConfig != nil {
+		p, err := grpcConfig.GenerateProbe(host)
+		if err != nil {
+			slog.Error("cannot generate grpc probe", "hostID", host.ID, "hostName", host.Name, "error", err)
 		} else {
 			probes = append(probes, p)
 		}

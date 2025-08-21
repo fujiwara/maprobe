@@ -3,6 +3,7 @@ package maprobe
 import (
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -37,6 +38,9 @@ func (m Metric) Otel() otelmetricdata.Metrics {
 
 func (m Metric) OtelString() string {
 	// promhttp_metric_handler_requests_total{code="200"} 988
+	if m.Attribute == nil {
+		return fmt.Sprintf("%s %f %s", m.Name, m.Value, m.Timestamp.Format(time.RFC3339))
+	}
 	return fmt.Sprintf("%s{%s} %f %s", m.Name, m.Attribute, m.Value, m.Timestamp.Format(time.RFC3339))
 }
 
@@ -152,10 +156,17 @@ func (a *Attribute) SetExtra(ex map[string]string, host *mackerel.Host) {
 
 func (a *Attribute) Otel() *otelattribute.Set {
 	kvs := make([]otelattribute.KeyValue, 0, len(a.Extra)+2)
+	var serviceNameSet bool
 	for k, v := range a.Extra {
 		kvs = append(kvs, otelattribute.String(k, v))
+		if k == string(semconv.ServiceNameKey) {
+			serviceNameSet = true
+		}
 	}
-	kvs = append(kvs, semconv.ServiceName(a.Service))
+	if !serviceNameSet && a.Service != "" {
+		// set service name if not already set
+		kvs = append(kvs, semconv.ServiceName(a.Service))
+	}
 	if a.HostID != "" {
 		kvs = append(kvs, semconv.HostID(a.HostID))
 	}
@@ -164,5 +175,52 @@ func (a *Attribute) Otel() *otelattribute.Set {
 }
 
 func (a Attribute) String() string {
-	return a.Otel().Encoded(otelattribute.DefaultEncoder())
+	s := a.Otel()
+	return s.Encoded(otelattribute.DefaultEncoder())
+}
+
+func parseMetricLine(b string) (Metric, error) {
+	cols := strings.Split(b, "\t")
+	if len(cols) < 3 {
+		return Metric{}, fmt.Errorf("invalid metric format. insufficient columns")
+	}
+	name, value, timestamp := cols[0], cols[1], cols[2]
+	if name == "" {
+		return Metric{}, fmt.Errorf("invalid metric format. name is empty")
+	}
+	m := Metric{
+		Name: name,
+	}
+	if v, err := strconv.ParseFloat(value, 64); err != nil {
+		return m, fmt.Errorf("invalid metric value: %s", value)
+	} else {
+		m.Value = v
+	}
+
+	if ts, err := strconv.ParseInt(timestamp, 10, 64); err != nil {
+		_ts, err := strconv.ParseFloat(timestamp, 64)
+		if err != nil {
+			return m, fmt.Errorf("invalid metric time: %s", timestamp)
+		}
+		m.Timestamp = time.Unix(int64(_ts), 0)
+	} else {
+		m.Timestamp = time.Unix(ts, 0)
+	}
+
+	if len(cols) == 3 {
+		return m, nil
+	}
+
+	// Handle additional attributes
+	attr := &Attribute{
+		Extra: make(map[string]string, len(cols)-3),
+	}
+	for _, ext := range cols[3:] {
+		c := strings.SplitN(ext, "=", 2)
+		if len(c) == 2 {
+			attr.Extra[c[0]] = c[1]
+		}
+	}
+	m.Attribute = attr
+	return m, nil
 }

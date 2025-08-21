@@ -7,8 +7,8 @@ import (
 	"net"
 	"time"
 
-	mackerel "github.com/mackerelio/mackerel-client-go"
 	"fmt"
+	mackerel "github.com/mackerelio/mackerel-client-go"
 	fping "github.com/tatsushid/go-fastping"
 )
 

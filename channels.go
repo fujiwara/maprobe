@@ -1,18 +1,18 @@
 package maprobe
 
 type Channels struct {
-	ServiceMetrics    chan ServiceMetric
-	HostMetrics       chan HostMetric
-	OtelMetrics       chan Metric
-	Destination       *DestinationConfig
+	ServiceMetrics chan ServiceMetric
+	HostMetrics    chan HostMetric
+	OtelMetrics    chan Metric
+	Destination    *DestinationConfig
 }
 
 func NewChannels(dst *DestinationConfig) *Channels {
 	chs := Channels{
-		ServiceMetrics:    make(chan ServiceMetric, PostMetricBufferLength*10),
-		HostMetrics:       make(chan HostMetric, PostMetricBufferLength*10),
-		OtelMetrics:       make(chan Metric, PostMetricBufferLength*10),
-		Destination:       dst,
+		ServiceMetrics: make(chan ServiceMetric, PostMetricBufferLength*10),
+		HostMetrics:    make(chan HostMetric, PostMetricBufferLength*10),
+		OtelMetrics:    make(chan Metric, PostMetricBufferLength*10),
+		Destination:    dst,
 	}
 	return &chs
 }
