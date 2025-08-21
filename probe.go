@@ -153,10 +153,11 @@ func (pd *ProbeDefinition) RunHostProbes(ctx context.Context, client *Client, st
 				}
 				stats.RecordProbeExecution(ctx, probe, err)
 				for _, m := range metrics {
-					m.Attribute = &Attribute{
-						Service: pd.Service.String(),
-						HostID:  host.ID,
+					if m.Attribute == nil {
+						m.Attribute = &Attribute{}
 					}
+					m.Attribute.Service = pd.Service.String()
+					m.Attribute.HostID = host.ID
 					m.Attribute.SetExtra(pd.Attributes, host)
 					ms = append(ms, m.HostMetric(host.ID))
 
@@ -192,9 +193,10 @@ func (pd *ProbeDefinition) RunServiceProbes(ctx context.Context, client *Client,
 		}
 		stats.RecordProbeExecution(ctx, probe, err)
 		for _, m := range metrics {
-			m.Attribute = &Attribute{
-				Service: serviceName,
+			if m.Attribute == nil {
+				m.Attribute = &Attribute{}
 			}
+			m.Attribute.Service = serviceName
 			m.Attribute.SetExtra(pd.Attributes, host)
 			ms = append(ms, m.ServiceMetric(serviceName))
 
