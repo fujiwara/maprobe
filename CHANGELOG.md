@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.10.2](https://github.com/fujiwara/maprobe/compare/v0.10.1...v0.10.2) - 2025-08-21
+- fix docker image tags by @fujiwara in https://github.com/fujiwara/maprobe/pull/134
+
 ## [v0.10.1](https://github.com/fujiwara/maprobe/compare/v0.10.0...v0.10.1) - 2025-08-21
 - fix metric attribute initialize. by @fujiwara in https://github.com/fujiwara/maprobe/pull/131
 - fix make install by @fujiwara in https://github.com/fujiwara/maprobe/pull/133
