@@ -49,9 +49,14 @@ var commandProbesExpect = [][]maprobe.Metric{
 	},
 	{
 		{
-			Name:      "test.myservice.ok",
+			Name:      "test.attr.ok",
 			Value:     1,
 			Timestamp: time.Unix(1523261168, 0),
+			Attribute: &maprobe.Attribute{
+				Extra: map[string]string{
+					"attr_foo": "foo",
+				},
+			},
 		},
 	},
 }
@@ -72,7 +77,11 @@ func TestCommand(t *testing.T) {
 			t.Error(err)
 		}
 		for j, m := range ms {
-			if d := cmp.Diff(m.String(), commandProbesExpect[i][j].String()); d != "" {
+			expected := commandProbesExpect[i][j]
+			if d := cmp.Diff(m.String(), expected.String()); d != "" {
+				t.Errorf("unexpected response %s", d)
+			}
+			if d := cmp.Diff(m.OtelString(), expected.OtelString()); d != "" {
 				t.Errorf("unexpected response %s", d)
 			}
 		}

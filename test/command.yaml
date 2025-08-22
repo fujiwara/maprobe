@@ -17,3 +17,5 @@ probes:
       command: "./test/command-plugin {{must_env `FOO`}}"
       env:
         FOO: bar
+  - command:
+      command: "printf '%s\t%s\t%s\tattr_foo=foo' $(./test/command-plugin attr)"
