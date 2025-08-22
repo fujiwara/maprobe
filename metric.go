@@ -143,7 +143,9 @@ func (a *Attribute) SetExtra(ex map[string]string, host *mackerel.Host) {
 	if len(ex) == 0 {
 		return
 	}
-	a.Extra = make(map[string]string, len(ex))
+	if a.Extra == nil {
+		a.Extra = make(map[string]string, len(ex))
+	}
 	for k, v := range ex {
 		vv, err := expandPlaceHolder(v, host, nil)
 		if err != nil {
