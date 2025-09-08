@@ -19,7 +19,7 @@ require (
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/gops v0.3.28
-	github.com/mackerelio/mackerel-client-go v0.37.2
+	github.com/mackerelio/mackerel-client-go v0.37.3
 	github.com/mattn/go-isatty v0.0.20
 	github.com/shogo82148/go-retry v1.3.1
 	github.com/tatsushid/go-fastping v0.0.0-20160109021039-d7bb493dee3e
