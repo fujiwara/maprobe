@@ -1,3 +1,3 @@
 package maprobe
 
-var Version = "v0.10.3"
+var Version = "v0.10.4"
