@@ -23,4 +23,6 @@ changelog:
       - "^docs:"
       - "^test:"
 release:
+  use_existing_draft: true
+
   prerelease: "auto"
