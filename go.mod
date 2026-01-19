@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.0
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.63.0
 	github.com/fujiwara/ridge v0.13.1
-	github.com/fujiwara/sloghandler v0.0.5
+	github.com/fujiwara/sloghandler v0.0.6
 	github.com/fujiwara/sloghandler/otelmetrics v0.0.5
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/go-cmp v0.7.0
