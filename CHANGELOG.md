@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.10.5](https://github.com/fujiwara/maprobe/compare/v0.10.4...v0.10.5) - 2026-01-25
+- Update Go toolchain to go1.24.9 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/152
+- Update Go toolchain to go1.24.11 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/165
+- Update Go toolchain to go1.24.12 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/181
+
 ## [v0.10.4](https://github.com/fujiwara/maprobe/compare/v0.10.3...v0.10.4) - 2025-09-21
 - Update Go toolchain to go1.24.7 by @github-actions[bot] in https://github.com/fujiwara/maprobe/pull/143
 - Immutable release by @fujiwara in https://github.com/fujiwara/maprobe/pull/146
