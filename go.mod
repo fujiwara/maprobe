@@ -2,7 +2,7 @@ module github.com/fujiwara/maprobe
 
 go 1.24
 
-toolchain go1.24.12
+toolchain go1.24.13
 
 require (
 	github.com/alecthomas/kong v1.12.1
