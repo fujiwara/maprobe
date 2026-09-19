@@ -1,6 +1,6 @@
-# Claude Code Instructions for maprobe
+# Agent Instructions for maprobe
 
-This document contains instructions and context for Claude Code when working on the maprobe project.
+This document contains instructions and context for AI coding agents when working on the maprobe project.
 
 ## Project Overview
 
